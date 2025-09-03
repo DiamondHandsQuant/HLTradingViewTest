@@ -1,21 +1,66 @@
 {
   "name": "hyperliquid-tradingview-demo",
   "version": "1.0.0",
-  "description": "TradingView Advanced Charts integration with HyperLiquid API",
+  "description": "A sophisticated trading interface integrating TradingView Advanced Charts with HyperLiquid's API for real-time cryptocurrency trading data and analysis",
   "main": "index.html",
+  "homepage": "https://github.com/DiamondHandsQuant/HLTradingViewTest#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DiamondHandsQuant/HLTradingViewTest.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DiamondHandsQuant/HLTradingViewTest/issues"
+  },
   "scripts": {
-    "start": "npx http-server -p 8080 -c-1",
-    "dev": "npx http-server -p 8080 -c-1"
+    "start": "npx http-server -p 8080 -c-1 --cors",
+    "dev": "npx http-server -p 8080 -c-1 --cors",
+    "build": "echo 'No build step required for static files'",
+    "serve": "npx http-server -p 8080 -c-1 --cors",
+    "test": "echo 'No tests specified' && exit 0"
   },
   "dependencies": {
     "http-server": "^14.1.1"
   },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
   "keywords": [
     "tradingview",
     "hyperliquid",
-    "crypto",
-    "trading"
+    "cryptocurrency",
+    "trading",
+    "charts",
+    "real-time",
+    "websocket",
+    "api",
+    "bitcoin",
+    "ethereum",
+    "defi",
+    "technical-analysis",
+    "candlestick",
+    "financial-data"
   ],
-  "author": "",
-  "license": "MIT"
+  "author": {
+    "name": "psyb0rg.eth",
+    "url": "https://x.com/psyb0rg_"
+  },
+  "contributors": [],
+  "license": "MIT",
+  "files": [
+    "index.html",
+    "app.js",
+    "datafeed.js",
+    "hyperliquid-api.js",
+    "styles.css",
+    "README.md",
+    "LICENSE"
+  ],
+  "browserslist": [
+    "Chrome >= 80",
+    "Firefox >= 75",
+    "Safari >= 13",
+    "Edge >= 80"
+  ]
 }

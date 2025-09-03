@@ -1,44 +1,118 @@
 # HyperLiquid TradingView Advanced Demo
 
-A sophisticated trading interface that integrates TradingView Advanced Charts with HyperLiquid's API for real-time cryptocurrency trading data.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![TradingView](https://img.shields.io/badge/TradingView-Charting%20Library-blue.svg)](https://www.tradingview.com/charting-library/)
 
-## Features
+A sophisticated, production-ready trading interface that integrates TradingView Advanced Charts with HyperLiquid's API for real-time cryptocurrency trading data and analysis.
 
+![Demo Screenshot](https://via.placeholder.com/800x400/1a1a1a/ffffff?text=HyperLiquid+TradingView+Demo)
+
+## 🚀 Live Demo
+
+Visit the live demo: [HLTradingViewTest](https://github.com/DiamondHandsQuant/HLTradingViewTest)
+
+## ✨ Features
+
+### 📈 Advanced Charting
 - **TradingView Advanced Charts Integration**: Full-featured charting with professional trading tools
+- **Multiple Timeframes**: Support for various chart intervals (1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w)
+- **Drawing Tools**: Complete set of technical analysis tools (trend lines, Fibonacci, shapes, annotations)
+- **Technical Indicators**: Built-in indicators and studies
+- **Professional UI**: Dark theme interface matching modern trading platforms
+
+### 🔗 Real-time Data Integration
 - **HyperLiquid API Integration**: Real-time market data and historical candle data
 - **WebSocket Real-time Updates**: Live price updates and candle streaming
-- **Professional UI**: Dark theme interface matching modern trading platforms
-- **Drawing Tools**: Complete set of technical analysis drawing tools
-- **Multiple Timeframes**: Support for various chart intervals (1m, 5m, 1h, 1D, etc.)
-- **Responsive Design**: Works on desktop and mobile devices
+- **Auto-reconnection**: Robust connection management with automatic reconnection
+- **Data Caching**: Optimized performance with intelligent data caching
 
-## Quick Start
+### 🎨 User Experience
+- **Responsive Design**: Works seamlessly on desktop, tablet, and mobile devices
+- **Fullscreen Mode**: Immersive trading experience
+- **Symbol Switching**: Easy cryptocurrency pair selection
+- **Customizable Interface**: Adjustable chart settings and preferences
 
-1. **Install dependencies**:
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Node.js** 18+ and npm
+- Modern web browser (Chrome 80+, Firefox 75+, Safari 13+, Edge 80+)
+- Internet connection for API access
+
+### Installation
+
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/DiamondHandsQuant/HLTradingViewTest.git
+   cd HLTradingViewTest
+   ```
+
+2. **Install dependencies**:
    ```bash
    npm install
    ```
 
-2. **Start the development server**:
+3. **Start the development server**:
    ```bash
    npm start
    ```
+   
+   Alternative development command:
+   ```bash
+   npm run dev
+   ```
 
-3. **Open your browser** and navigate to `http://localhost:8080`
+4. **Open your browser** and navigate to `http://localhost:8080`
 
-## Project Structure
+### First Run
+
+1. The application will automatically load with BTC/USD as the default symbol
+2. Real-time data will start streaming immediately
+3. Use the symbol selector to switch between different cryptocurrency pairs
+4. Explore the drawing tools and technical indicators
+
+### Production Deployment
+
+For production deployment, you can use any static file server:
+
+```bash
+# Using nginx, apache, or any static hosting service
+# Simply serve the files from the project root directory
+```
+
+**Deployment Platforms:**
+- Netlify: Drag and drop the project folder
+- Vercel: Connect your Git repository
+- GitHub Pages: Enable Pages in repository settings
+- AWS S3: Upload files to S3 bucket with static hosting
+
+## 📁 Project Structure
 
 ```
 TvAdvancedDemoHL/
-├── index.html              # Main HTML file
-├── styles.css              # Main application styles
-├── custom_chart.css        # TradingView chart custom styles
-├── app.js                  # Main application logic
-├── datafeed.js            # TradingView datafeed implementation
-├── hyperliquid-api.js     # HyperLiquid API integration
-├── package.json           # Project dependencies
-└── README.md              # This file
+├── 📄 index.html              # Main HTML file with TradingView widget
+├── 🎨 styles.css              # Main application styles and UI
+├── ⚙️ app.js                  # Main application logic and initialization
+├── 📊 datafeed.js            # TradingView datafeed implementation
+├── 🔗 hyperliquid-api.js     # HyperLiquid API integration and WebSocket
+├── 📦 package.json           # Project dependencies and scripts
+├── 📋 README.md              # Project documentation
+├── 📜 LICENSE                # MIT License file
+└── 📚 charting_library/      # TradingView Charting Library files
+    ├── charting_library/     # Core library files
+    └── datafeeds/           # UDF datafeed utilities
 ```
+
+### Key Files Explained
+
+- **`index.html`**: Entry point with TradingView widget container and UI elements
+- **`app.js`**: Main application class managing chart initialization and UI interactions
+- **`datafeed.js`**: Implements TradingView's datafeed interface for HyperLiquid integration
+- **`hyperliquid-api.js`**: Handles REST API calls and WebSocket connections to HyperLiquid
+- **`styles.css`**: Custom styling for dark theme and responsive design
+- **`charting_library/`**: TradingView Charting Library (not included in repository)
 
 ## API Integration
 
@@ -174,28 +248,132 @@ Enable debug logging by opening browser console and setting:
 window.tradingViewApp.debug = true;
 ```
 
-## License
+## 📄 License
 
-MIT License - see LICENSE file for details
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for full details.
 
-## Contributing
+### Third-Party Licenses
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+- **TradingView Charting Library**: Subject to TradingView's licensing terms
+- **HyperLiquid API**: Used in accordance with HyperLiquid's terms of service
 
-## Support
+### Usage Rights
 
-For issues and questions:
+✅ **Permitted:**
+- Commercial use
+- Modification and distribution
+- Private use
+- Patent use
 
-- Check the browser console for error messages
-- Verify API connectivity
-- Ensure all dependencies are installed
-- Review the TradingView Charting Library documentation
+❌ **Limitations:**
+- No warranty provided
+- No liability assumed
+- Must include license and copyright notice
 
-## API Documentation
+## 🤝 Contributing
 
-- [HyperLiquid API Docs](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api)
-- [TradingView Charting Library](https://github.com/tradingview/charting_library)
+We welcome contributions! Please follow these steps:
+
+### Getting Started
+
+1. **Fork the repository** on GitHub
+2. **Clone your fork** locally:
+   ```bash
+   git clone https://github.com/yourusername/TvAdvancedDemoHL.git
+   ```
+3. **Create a feature branch**:
+   ```bash
+   git checkout -b feature/amazing-feature
+   ```
+
+### Development Guidelines
+
+- Follow existing code style and conventions
+- Add comments for complex logic
+- Test your changes thoroughly
+- Update documentation as needed
+- Ensure responsive design compatibility
+
+### Submitting Changes
+
+1. **Commit your changes**:
+   ```bash
+   git commit -m "Add amazing feature"
+   ```
+2. **Push to your branch**:
+   ```bash
+   git push origin feature/amazing-feature
+   ```
+3. **Submit a pull request** with:
+   - Clear description of changes
+   - Screenshots for UI changes
+   - Testing instructions
+
+### Code of Conduct
+
+- Be respectful and inclusive
+- Focus on constructive feedback
+- Help others learn and grow
+
+## 🆘 Support & Troubleshooting
+
+### Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| Chart not loading | Check browser console, ensure TradingView library is loaded |
+| No data displayed | Verify HyperLiquid API connectivity and symbol availability |
+| WebSocket connection failed | Check network connectivity and firewall settings |
+| Slow performance | Clear browser cache, check internet connection |
+
+### Debug Mode
+
+Enable debug logging in browser console:
+
+```javascript
+// Enable detailed logging
+window.tradingViewApp.debug = true;
+
+// Check API connectivity
+window.tradingViewApp.api.testConnection();
+```
+
+### Getting Help
+
+1. **Check the [Issues](https://github.com/DiamondHandsQuant/HLTradingViewTest/issues)** for existing solutions
+2. **Search the documentation** for relevant information
+3. **Create a new issue** with:
+   - Detailed problem description
+   - Browser and OS information
+   - Console error messages
+   - Steps to reproduce
+
+### Performance Optimization
+
+- Use modern browsers for best performance
+- Close unnecessary browser tabs
+- Ensure stable internet connection
+- Clear browser cache periodically
+
+## 📚 Documentation & Resources
+
+### API Documentation
+- [HyperLiquid API Documentation](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api)
+- [TradingView Charting Library Docs](https://github.com/tradingview/charting_library)
+- [WebSocket API Reference](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/websocket)
+
+### Learning Resources
+- [TradingView Charting Library Tutorial](https://github.com/tradingview/charting_library/wiki)
+- [JavaScript Trading Applications](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API)
+- [Cryptocurrency Trading Basics](https://www.investopedia.com/cryptocurrency-4427699)
+
+### Community
+- [GitHub Discussions](https://github.com/DiamondHandsQuant/HLTradingViewTest/discussions)
+- [Stack Overflow](https://stackoverflow.com/questions/tagged/tradingview)
+- [Follow @psyb0rg_](https://x.com/psyb0rg_) on X (Twitter)
+
+---
+
+**Made with ❤️ for the crypto trading community by [psyb0rg.eth](https://x.com/psyb0rg_)**
+
+*If you find this project helpful, please consider giving it a ⭐ on [GitHub](https://github.com/DiamondHandsQuant/HLTradingViewTest)!*
