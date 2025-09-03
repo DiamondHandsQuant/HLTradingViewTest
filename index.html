@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HyperLiquid TradingView Advanced Demo</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="charting_library/charting_library/charting_library.standalone.js"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Main Content Area - Full Width Layout -->
+        <div class="main-content">
+            <!-- Chart Container - 80% -->
+            <div class="chart-container">
+                <div id="tv_chart_container"></div>
+            </div>
+            
+            <!-- Order Book Container - 20% -->
+            <div class="orderbook-container">
+                <div class="orderbook-header">
+                    <div class="orderbook-tabs">
+                        <button class="orderbook-tab active" data-tab="book">Order Book</button>
+                        <button class="orderbook-tab" data-tab="trades">Trades</button>
+                    </div>
+                    <div class="orderbook-controls">
+                        <select class="orderbook-precision">
+                            <option value="0.1">0.1</option>
+                            <option value="1" selected>1</option>
+                            <option value="10">10</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="orderbook-content">
+                    <div class="orderbook-spread">
+                        <div class="spread-info">
+                            <span class="spread-label">Spread</span>
+                            <span class="spread-value" id="spread-value">-</span>
+                            <span class="spread-percent" id="spread-percent">-</span>
+                        </div>
+                    </div>
+                    
+                    <div class="orderbook-table">
+                        <div class="orderbook-header-row">
+                            <span class="price-header">Price (USD)</span>
+                            <span class="size-header">Size (USD)</span>
+                            <span class="total-header">Total (USD)</span>
+                        </div>
+                        
+                        <div class="orderbook-asks" id="orderbook-asks">
+                            <!-- Ask orders will be populated here -->
+                        </div>
+                        
+                        <div class="orderbook-mid-price" id="orderbook-mid-price">
+                            <span class="mid-price-value">-</span>
+                        </div>
+                        
+                        <div class="orderbook-bids" id="orderbook-bids">
+                            <!-- Bid orders will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading TradingView Chart...</div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="hyperliquid-api.js"></script>
+    <script src="datafeed.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

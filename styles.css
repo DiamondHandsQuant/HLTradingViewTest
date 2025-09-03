@@ -1,0 +1,341 @@
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: #0d1421;
+    color: #d1d4dc;
+    overflow: hidden;
+    height: 100vh;
+}
+
+/* App Container */
+.app-container {
+    display: flex;
+    height: 100vh;
+    background-color: #0d1421;
+}
+
+/* Main Content Layout - 80/20 Split */
+.main-content {
+    display: flex;
+    flex: 1;
+    height: 100%;
+    gap: 0;
+}
+
+/* Chart Container - 80% width */
+.chart-container {
+    flex: 0 0 80%;
+    position: relative;
+    background-color: #0d1421;
+}
+
+#tv_chart_container {
+    width: 100%;
+    height: 100%;
+}
+
+/* Order Book Container - 20% width */
+.orderbook-container {
+    flex: 0 0 20%;
+    height: 100%;
+    background: #131722;
+    border-left: 1px solid #2a2e39;
+    display: flex;
+    flex-direction: column;
+    min-width: 280px;
+}
+
+.orderbook-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #2a2e39;
+    background: #1e222d;
+}
+
+.orderbook-tabs {
+    display: flex;
+    gap: 8px;
+}
+
+.orderbook-tab {
+    background: none;
+    border: none;
+    color: #868b93;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.orderbook-tab:hover {
+    color: #d1d4dc;
+    background: #2a2e39;
+}
+
+.orderbook-tab.active {
+    color: #ffffff;
+    background: #2962ff;
+}
+
+.orderbook-controls select {
+    background: #1e222d;
+    border: 1px solid #2a2e39;
+    color: #d1d4dc;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+.orderbook-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.orderbook-spread {
+    padding: 8px 16px;
+    border-bottom: 1px solid #2a2e39;
+    background: #1e222d;
+}
+
+.spread-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+}
+
+.spread-label {
+    color: #868b93;
+}
+
+.spread-value {
+    color: #d1d4dc;
+    font-weight: 500;
+}
+
+.spread-percent {
+    color: #868b93;
+}
+
+.orderbook-table {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.orderbook-header-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    padding: 8px 16px;
+    font-size: 11px;
+    color: #868b93;
+    font-weight: 500;
+    border-bottom: 1px solid #2a2e39;
+    text-align: right;
+    background: #1e222d;
+}
+
+.price-header {
+    text-align: left;
+}
+
+.orderbook-asks,
+.orderbook-bids {
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+}
+
+.orderbook-asks {
+    display: flex;
+    flex-direction: column-reverse;
+}
+
+.orderbook-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    padding: 2px 16px;
+    font-size: 12px;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    position: relative;
+    cursor: pointer;
+    transition: background-color 0.1s ease;
+    min-height: 20px;
+    align-items: center;
+}
+
+.orderbook-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.orderbook-row.bid {
+    color: #4caf50;
+}
+
+.orderbook-row.ask {
+    color: #f44336;
+}
+
+.orderbook-row .price {
+    text-align: left;
+    font-weight: 500;
+}
+
+.orderbook-row .size,
+.orderbook-row .total {
+    text-align: right;
+    color: #d1d4dc;
+}
+
+.orderbook-row .size-bar {
+    position: absolute;
+    top: 0;
+    right: 0;
+    height: 100%;
+    opacity: 0.1;
+    z-index: 0;
+}
+
+.orderbook-row.bid .size-bar {
+    background: #4caf50;
+}
+
+.orderbook-row.ask .size-bar {
+    background: #f44336;
+}
+
+.orderbook-mid-price {
+    padding: 8px 16px;
+    text-align: center;
+    background: #1e222d;
+    border-top: 1px solid #2a2e39;
+    border-bottom: 1px solid #2a2e39;
+}
+
+.mid-price-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: #d1d4dc;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(13, 20, 33, 0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    transition: opacity 0.3s ease;
+}
+
+.loading-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #2a2e39;
+    border-top: 3px solid #2962ff;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+}
+
+.loading-text {
+    color: #868993;
+    font-size: 14px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1e222d;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #2a2e39;
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #363a45;
+}
+
+/* TradingView Chart Overrides */
+.tv-lightweight-charts {
+    background-color: #0d1421 !important;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .main-content {
+        flex-direction: column;
+    }
+    
+    .chart-container {
+        flex: 0 0 70%;
+    }
+    
+    .orderbook-container {
+        flex: 0 0 30%;
+        border-left: none;
+        border-top: 1px solid #2a2e39;
+    }
+}
+
+@media (max-width: 768px) {
+    .orderbook-container {
+        min-width: 100%;
+    }
+    
+    .orderbook-row {
+        font-size: 11px;
+        padding: 1px 12px;
+    }
+    
+    .orderbook-header-row {
+        font-size: 10px;
+        padding: 6px 12px;
+    }
+}
+
+/* Animation Classes */
+.fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
