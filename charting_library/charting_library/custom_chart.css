@@ -1,0 +1,331 @@
+/* Custom TradingView Chart Styles */
+
+/* Override TradingView default styles to match our dark theme */
+.tv-lightweight-charts,
+.chart-container-border {
+    background-color: #0d1421 !important;
+}
+
+/* Chart background */
+.tv-lightweight-charts canvas {
+    background-color: #0d1421 !important;
+}
+
+/* Toolbar styles */
+.tv-header {
+    background-color: #1e222d !important;
+    border-bottom: 1px solid #2a2e39 !important;
+}
+
+/* Button styles */
+.tv-button {
+    background-color: transparent !important;
+    border: 1px solid #2a2e39 !important;
+    color: #868993 !important;
+}
+
+.tv-button:hover {
+    background-color: #2a2e39 !important;
+    color: #d1d4dc !important;
+}
+
+.tv-button--active {
+    background-color: #2962ff !important;
+    border-color: #2962ff !important;
+    color: white !important;
+}
+
+/* Dropdown styles */
+.tv-dropdown-behavior {
+    background-color: #1e222d !important;
+    border: 1px solid #2a2e39 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.tv-dropdown-behavior__item {
+    color: #d1d4dc !important;
+}
+
+.tv-dropdown-behavior__item:hover {
+    background-color: #2a2e39 !important;
+}
+
+/* Input styles */
+.tv-control-input {
+    background-color: #1e222d !important;
+    border: 1px solid #2a2e39 !important;
+    color: #d1d4dc !important;
+}
+
+.tv-control-input:focus {
+    border-color: #2962ff !important;
+}
+
+/* Scrollbar styles for TradingView components */
+.tv-scroll-wrap::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+.tv-scroll-wrap::-webkit-scrollbar-track {
+    background: #1e222d;
+}
+
+.tv-scroll-wrap::-webkit-scrollbar-thumb {
+    background: #2a2e39;
+    border-radius: 3px;
+}
+
+.tv-scroll-wrap::-webkit-scrollbar-thumb:hover {
+    background: #363a45;
+}
+
+/* Dialog styles */
+.tv-dialog {
+    background-color: #1e222d !important;
+    border: 1px solid #2a2e39 !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+
+.tv-dialog__header {
+    background-color: #1e222d !important;
+    border-bottom: 1px solid #2a2e39 !important;
+    color: #d1d4dc !important;
+}
+
+.tv-dialog__body {
+    background-color: #1e222d !important;
+    color: #d1d4dc !important;
+}
+
+.tv-dialog__footer {
+    background-color: #1e222d !important;
+    border-top: 1px solid #2a2e39 !important;
+}
+
+/* Tab styles */
+.tv-tabs {
+    background-color: #1e222d !important;
+    border-bottom: 1px solid #2a2e39 !important;
+}
+
+.tv-tabs__tab {
+    color: #868993 !important;
+}
+
+.tv-tabs__tab--active {
+    color: #2962ff !important;
+    border-bottom-color: #2962ff !important;
+}
+
+/* Tooltip styles */
+.tv-tooltip {
+    background-color: #1e222d !important;
+    border: 1px solid #2a2e39 !important;
+    color: #d1d4dc !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Context menu styles */
+.tv-context-menu {
+    background-color: #1e222d !important;
+    border: 1px solid #2a2e39 !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+.tv-context-menu__item {
+    color: #d1d4dc !important;
+}
+
+.tv-context-menu__item:hover {
+    background-color: #2a2e39 !important;
+}
+
+.tv-context-menu__separator {
+    border-top-color: #2a2e39 !important;
+}
+
+/* Legend styles */
+.tv-legend {
+    background-color: rgba(30, 34, 45, 0.9) !important;
+    color: #d1d4dc !important;
+}
+
+.tv-legend__item {
+    color: #d1d4dc !important;
+}
+
+/* Price scale styles */
+.tv-price-scale {
+    background-color: #0d1421 !important;
+    color: #868993 !important;
+}
+
+/* Time scale styles */
+.tv-time-scale {
+    background-color: #0d1421 !important;
+    color: #868993 !important;
+}
+
+/* Loading screen styles */
+.tv-loading-screen {
+    background-color: #0d1421 !important;
+    color: #2962ff !important;
+}
+
+/* Study dialog styles */
+.tv-study-dialog {
+    background-color: #1e222d !important;
+    border: 1px solid #2a2e39 !important;
+}
+
+.tv-study-dialog__header {
+    background-color: #1e222d !important;
+    color: #d1d4dc !important;
+}
+
+.tv-study-dialog__body {
+    background-color: #1e222d !important;
+}
+
+/* Color picker styles */
+.tv-color-picker {
+    background-color: #1e222d !important;
+    border: 1px solid #2a2e39 !important;
+}
+
+.tv-color-picker__item {
+    border: 1px solid #2a2e39 !important;
+}
+
+/* Slider styles */
+.tv-slider {
+    background-color: #2a2e39 !important;
+}
+
+.tv-slider__thumb {
+    background-color: #2962ff !important;
+}
+
+/* Checkbox styles */
+.tv-checkbox {
+    border: 1px solid #2a2e39 !important;
+}
+
+.tv-checkbox--checked {
+    background-color: #2962ff !important;
+    border-color: #2962ff !important;
+}
+
+/* Radio button styles */
+.tv-radio {
+    border: 1px solid #2a2e39 !important;
+}
+
+.tv-radio--checked {
+    background-color: #2962ff !important;
+    border-color: #2962ff !important;
+}
+
+/* Select styles */
+.tv-select {
+    background-color: #1e222d !important;
+    border: 1px solid #2a2e39 !important;
+    color: #d1d4dc !important;
+}
+
+.tv-select:focus {
+    border-color: #2962ff !important;
+}
+
+/* Symbol search styles */
+.tv-symbol-search {
+    background-color: #1e222d !important;
+    border: 1px solid #2a2e39 !important;
+}
+
+.tv-symbol-search__input {
+    background-color: transparent !important;
+    color: #d1d4dc !important;
+}
+
+.tv-symbol-search__results {
+    background-color: #1e222d !important;
+    border-top: 1px solid #2a2e39 !important;
+}
+
+.tv-symbol-search__result {
+    color: #d1d4dc !important;
+}
+
+.tv-symbol-search__result:hover {
+    background-color: #2a2e39 !important;
+}
+
+/* Drawing toolbar styles */
+.tv-drawing-toolbar {
+    background-color: #1e222d !important;
+    border: 1px solid #2a2e39 !important;
+}
+
+.tv-drawing-toolbar__button {
+    color: #868993 !important;
+}
+
+.tv-drawing-toolbar__button:hover {
+    background-color: #2a2e39 !important;
+    color: #d1d4dc !important;
+}
+
+.tv-drawing-toolbar__button--active {
+    background-color: #2962ff !important;
+    color: white !important;
+}
+
+/* Properties dialog styles */
+.tv-properties-dialog {
+    background-color: #1e222d !important;
+    border: 1px solid #2a2e39 !important;
+}
+
+.tv-properties-dialog__section {
+    border-bottom: 1px solid #2a2e39 !important;
+}
+
+.tv-properties-dialog__section-title {
+    color: #d1d4dc !important;
+}
+
+/* Override any remaining white backgrounds */
+div[class*="tv-"] {
+    background-color: inherit;
+}
+
+/* Ensure text is visible */
+span[class*="tv-"],
+div[class*="tv-"] {
+    color: inherit;
+}
+
+/* Fix any potential z-index issues */
+.tv-chart-container {
+    position: relative;
+    z-index: 1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .tv-header {
+        padding: 8px !important;
+    }
+    
+    .tv-button {
+        padding: 4px 8px !important;
+        font-size: 12px !important;
+    }
+    
+    .tv-dialog {
+        max-width: 90vw !important;
+        max-height: 90vh !important;
+    }
+}
