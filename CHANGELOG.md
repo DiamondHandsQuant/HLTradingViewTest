@@ -12,12 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TradingView Advanced Charts integration with full feature set
 - HyperLiquid API integration for real-time cryptocurrency data
 - WebSocket real-time data streaming with auto-reconnection
+- **Order Book Integration**: Real-time bid/ask levels with market depth visualization
 - Professional dark theme UI matching modern trading platforms
 - Complete set of drawing tools and technical analysis features
 - Support for multiple timeframes (1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w)
 - Responsive design for desktop, tablet, and mobile devices
 - Symbol switching for different cryptocurrency pairs
 - Real-time price updates and candle streaming
+- **Screenshot Documentation**: Professional demo screenshot showing integrated order book
 - Comprehensive documentation and setup instructions
 - MIT License with proper attribution
 - Contributing guidelines and code of conduct

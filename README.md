@@ -6,7 +6,9 @@
 
 A sophisticated, production-ready trading interface that integrates TradingView Advanced Charts with HyperLiquid's API for real-time cryptocurrency trading data and analysis.
 
-![Demo Screenshot](https://via.placeholder.com/800x400/1a1a1a/ffffff?text=HyperLiquid+TradingView+Demo)
+![HyperLiquid TradingView Integration](./charting_library/charting_library/OrderBookCharts.png)
+
+*Professional TradingView charts with integrated order book showing real-time BTC/USD market data*
 
 ## 🚀 Live Demo
 
@@ -24,6 +26,7 @@ Visit the live demo: [HLTradingViewTest](https://github.com/DiamondHandsQuant/HL
 ### 🔗 Real-time Data Integration
 - **HyperLiquid API Integration**: Real-time market data and historical candle data
 - **WebSocket Real-time Updates**: Live price updates and candle streaming
+- **Order Book Integration**: Real-time bid/ask levels with market depth visualization
 - **Auto-reconnection**: Robust connection management with automatic reconnection
 - **Data Caching**: Optimized performance with intelligent data caching
 
@@ -107,12 +110,12 @@ TvAdvancedDemoHL/
 
 ### Key Files Explained
 
-- **`index.html`**: Entry point with TradingView widget container and UI elements
+- **`index.html`**: Entry point with TradingView widget container and order book UI
 - **`app.js`**: Main application class managing chart initialization and UI interactions
 - **`datafeed.js`**: Implements TradingView's datafeed interface for HyperLiquid integration
 - **`hyperliquid-api.js`**: Handles REST API calls and WebSocket connections to HyperLiquid
-- **`styles.css`**: Custom styling for dark theme and responsive design
-- **`charting_library/`**: TradingView Charting Library (not included in repository)
+- **`styles.css`**: Custom styling for dark theme, responsive design, and order book
+- **`charting_library/`**: TradingView Charting Library with custom configurations
 
 ## API Integration
 
@@ -129,16 +132,28 @@ The application uses HyperLiquid's REST API endpoints:
 Real-time data is streamed via WebSocket connection:
 
 - **URL**: `wss://api.hyperliquid.xyz/ws`
-- **Subscription**: `{"method": "subscribe", "subscription": {"type": "candle", "coin": "BTC", "interval": "1m"}}`
+- **Candle Subscription**: `{"method": "subscribe", "subscription": {"type": "candle", "coin": "BTC", "interval": "1m"}}`
+- **Order Book Subscription**: `{"method": "subscribe", "subscription": {"type": "l2Book", "coin": "BTC"}}`
+
+### Order Book Integration
+
+The integrated order book provides real-time market depth visualization:
+
+- **Real-time Updates**: Live bid/ask levels with size information
+- **Market Depth**: Visual representation of order book liquidity
+- **Price Levels**: Detailed view of buy/sell orders at different price points
+- **Responsive Design**: Seamlessly integrated with chart interface
+- **Color Coding**: Green for bids, red for asks, with size-based intensity
 
 ## Supported Features
 
 ### Chart Features
 - Candlestick charts with OHLCV data
 - Multiple timeframes (1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w)
-- Real-time price updates
-- Volume indicators
-- Professional dark theme
+- Real-time price updates via WebSocket
+- Volume indicators and market depth
+- Integrated order book with bid/ask levels
+- Professional dark theme matching HyperLiquid's interface
 
 ### Drawing Tools
 - Trend lines
@@ -150,12 +165,13 @@ Real-time data is streamed via WebSocket connection:
 - Measurement tools
 
 ### UI Controls
-- Symbol switching
-- Timeframe selection
-- Fullscreen mode
+- Symbol switching between cryptocurrency pairs
+- Timeframe selection with multiple intervals
+- Fullscreen mode for immersive trading
 - Auto-scale and log-scale options
-- Technical indicators
-- Chart settings
+- Technical indicators and studies
+- Order book toggle and market depth view
+- Chart settings and customization
 
 ## Technical Implementation
 

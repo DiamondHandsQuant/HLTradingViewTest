@@ -55,7 +55,8 @@
     "hyperliquid-api.js",
     "styles.css",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "charting_library/charting_library/OrderBookCharts.png"
   ],
   "browserslist": [
     "Chrome >= 80",
