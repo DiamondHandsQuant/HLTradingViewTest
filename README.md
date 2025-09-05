@@ -6,6 +6,8 @@
 
 A sophisticated, production-ready trading interface that integrates TradingView Advanced Charts with HyperLiquid's API for real-time cryptocurrency trading data and analysis.
 
+> **⚠️ Important**: This project requires a TradingView Advanced Charts license. [Apply for access here](https://in.tradingview.com/advanced-charts/) before using this integration.
+
 ![HyperLiquid TradingView Integration](./charting_library/charting_library/OrderBookCharts.png)
 
 *Professional TradingView charts with integrated order book showing real-time BTC/USD market data*
@@ -43,6 +45,7 @@ Visit the live demo: [HLTradingViewTest](https://github.com/DiamondHandsQuant/HL
 - **Node.js** 18+ and npm
 - Modern web browser (Chrome 80+, Firefox 75+, Safari 13+, Edge 80+)
 - Internet connection for API access
+- **TradingView Advanced Charts License** - [Apply for access](https://in.tradingview.com/advanced-charts/)
 
 ### Installation
 
@@ -57,7 +60,12 @@ Visit the live demo: [HLTradingViewTest](https://github.com/DiamondHandsQuant/HL
    npm install
    ```
 
-3. **Start the development server**:
+3. **Obtain TradingView Library** (Required):
+   - Apply for access at [TradingView Advanced Charts](https://in.tradingview.com/advanced-charts/)
+   - Download the charting library once approved
+   - Extract to `charting_library/` directory in the project root
+
+4. **Start the development server**:
    ```bash
    npm start
    ```
@@ -67,7 +75,7 @@ Visit the live demo: [HLTradingViewTest](https://github.com/DiamondHandsQuant/HL
    npm run dev
    ```
 
-4. **Open your browser** and navigate to `http://localhost:8080`
+5. **Open your browser** and navigate to `http://localhost:8080`
 
 ### First Run
 
@@ -272,6 +280,19 @@ This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) 
 
 - **TradingView Charting Library**: Subject to TradingView's licensing terms
 - **HyperLiquid API**: Used in accordance with HyperLiquid's terms of service
+
+### 📋 **TradingView Advanced Charts License**
+
+This project uses TradingView's Advanced Charts library, which requires a separate license from TradingView. 
+
+**Important**: The TradingView Charting Library is **not included** in this repository due to licensing restrictions. To use this project:
+
+1. **Apply for Access**: Visit [TradingView Advanced Charts](https://in.tradingview.com/advanced-charts/) to request access
+2. **Download Library**: Once approved, download the charting library from TradingView
+3. **Install Library**: Place the library files in the `charting_library/` directory
+4. **Commercial Use**: Ensure compliance with TradingView's licensing terms for your use case
+
+The library included in this repository is for demonstration purposes and may not be suitable for production use without proper licensing.
 
 ### Usage Rights
 
