@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Symbol Switching - HyperLiquid & Ostium</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0d1421;
+            color: #fff;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+            color: #4caf50;
+        }
+        .info {
+            background: #1a1d29;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 20px;
+        }
+        button {
+            padding: 15px;
+            background: #2a2e39;
+            color: #fff;
+            border: 1px solid #3a3e49;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        button:hover {
+            background: #3a3e49;
+            border-color: #4caf50;
+        }
+        button.crypto {
+            border-left: 3px solid #2196f3;
+        }
+        button.rwa {
+            border-left: 3px solid #ff9800;
+        }
+        .current-state {
+            background: #2a2e39;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+        }
+        .exchange-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+        .hyperliquid {
+            background: #2196f3;
+        }
+        .ostium {
+            background: #ff9800;
+        }
+        .log {
+            background: #0a0c14;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 2px solid #4caf50;
+            padding-left: 10px;
+        }
+        .log-entry.switch {
+            border-left-color: #ff9800;
+        }
+        .log-entry.error {
+            border-left-color: #f44336;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 Test Symbol Switching</h1>
+        
+        <div class="info">
+            <h3>📝 How It Works</h3>
+            <p>Click any symbol below to test automatic exchange switching:</p>
+            <ul>
+                <li><strong>Crypto Symbols</strong> (Blue) → Uses <strong>HyperLiquid</strong> exchange</li>
+                <li><strong>RWA Symbols</strong> (Orange) → Uses <strong>Ostium</strong> exchange</li>
+            </ul>
+            <p>The app automatically detects the symbol type and switches to the appropriate exchange!</p>
+        </div>
+        
+        <div class="current-state">
+            <h3>Current State</h3>
+            <p>
+                Symbol: <strong id="current-symbol">-</strong>
+                <span id="exchange-badge" class="exchange-badge hyperliquid">HYPERLIQUID</span>
+            </p>
+        </div>
+        
+        <h3>🪙 Crypto Symbols (HyperLiquid)</h3>
+        <div class="button-grid">
+            <button class="crypto" onclick="testSymbol('BTC')">BTC</button>
+            <button class="crypto" onclick="testSymbol('ETH')">ETH</button>
+            <button class="crypto" onclick="testSymbol('SOL')">SOL</button>
+            <button class="crypto" onclick="testSymbol('AVAX')">AVAX</button>
+            <button class="crypto" onclick="testSymbol('MATIC')">MATIC</button>
+            <button class="crypto" onclick="testSymbol('DOGE')">DOGE</button>
+        </div>
+        
+        <h3 style="margin-top: 30px;">🏛️ RWA Symbols (Ostium)</h3>
+        <div class="button-grid">
+            <button class="rwa" onclick="testSymbol('GOLD')">GOLD</button>
+            <button class="rwa" onclick="testSymbol('SILVER')">SILVER</button>
+            <button class="rwa" onclick="testSymbol('OIL')">OIL</button>
+            <button class="rwa" onclick="testSymbol('SPX')">SPX</button>
+            <button class="rwa" onclick="testSymbol('NDX')">NDX</button>
+            <button class="rwa" onclick="testSymbol('EURUSD')">EURUSD</button>
+        </div>
+        
+        <h3 style="margin-top: 30px;">📊 Activity Log</h3>
+        <div class="log" id="log">
+            <div class="log-entry">Waiting for symbol selection...</div>
+        </div>
+    </div>
+    
+    <script>
+        // Simulated exchange detection (matches app.js logic)
+        const rwaSymbols = ['GOLD', 'SILVER', 'OIL', 'SPX', 'NDX', 'EURUSD', 'GBPUSD'];
+        let currentExchange = 'HYPERLIQUID';
+        let currentSymbol = null;
+        
+        function getExchangeForSymbol(symbol) {
+            const symbolUpper = symbol.toUpperCase();
+            const isRWA = rwaSymbols.some(rwa => symbolUpper.includes(rwa));
+            return isRWA ? 'OSTIUM' : 'HYPERLIQUID';
+        }
+        
+        function testSymbol(symbol) {
+            const requiredExchange = getExchangeForSymbol(symbol);
+            const needsSwitch = requiredExchange !== currentExchange;
+            
+            addLogEntry(
+                `Selected: ${symbol}`,
+                needsSwitch ? 'switch' : 'normal'
+            );
+            
+            if (needsSwitch) {
+                addLogEntry(
+                    `🔄 Switching from ${currentExchange} to ${requiredExchange}`,
+                    'switch'
+                );
+                currentExchange = requiredExchange;
+            } else {
+                addLogEntry(
+                    `✓ Staying on ${currentExchange}`,
+                    'normal'
+                );
+            }
+            
+            currentSymbol = symbol;
+            updateUI();
+            
+            addLogEntry(
+                `📈 Loading chart for ${symbol} on ${requiredExchange}`,
+                'normal'
+            );
+        }
+        
+        function updateUI() {
+            document.getElementById('current-symbol').textContent = currentSymbol || '-';
+            const badge = document.getElementById('exchange-badge');
+            badge.textContent = currentExchange;
+            badge.className = 'exchange-badge ' + currentExchange.toLowerCase();
+        }
+        
+        function addLogEntry(message, type = 'normal') {
+            const log = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry ' + type;
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            log.appendChild(entry);
+            log.scrollTop = log.scrollHeight;
+        }
+        
+        // Initialize
+        addLogEntry('Test page loaded. Click a symbol to test exchange switching!', 'normal');
+    </script>
+</body>
+</html>
+

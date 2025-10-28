@@ -9,12 +9,28 @@ class TradingViewApp {
         this.datafeed = null;
         this.currentSymbol = 'BTC';
         this.currentInterval = '1h';
+        this.currentExchange = null; // Track current exchange (HYPERLIQUID or OSTIUM)
         this.isInitialized = false;
         this.priceUpdateInterval = null;
+        
+        // RWA symbols list - these will use Ostium
+        this.rwaSymbols = ['GOLD', 'SILVER', 'OIL', 'SPX', 'NDX', 'EURUSD', 'GBPUSD']; // Add actual RWA symbols
         
         // Bind methods
         this.handleResize = this.handleResize.bind(this);
         this.updatePriceInfo = this.updatePriceInfo.bind(this);
+    }
+    
+    /**
+     * Determine which exchange to use for a symbol
+     * @param {string} symbol - The symbol to check
+     * @returns {string} - 'OSTIUM' for RWA, 'HYPERLIQUID' for crypto
+     */
+    getExchangeForSymbol(symbol) {
+        // Check if symbol is an RWA asset
+        const symbolUpper = symbol.toUpperCase();
+        const isRWA = this.rwaSymbols.some(rwa => symbolUpper.includes(rwa));
+        return isRWA ? 'OSTIUM' : 'HYPERLIQUID';
     }
 
     /**
@@ -27,11 +43,11 @@ class TradingViewApp {
             // Wait for TradingView to load
             await this.waitForTradingView();
             
-            // Initialize datafeed first
-            this.datafeed = new HyperLiquidDatafeed();
-            await this.datafeed.initialize();
+            // Determine exchange based on initial symbol
+            const exchange = this.getExchangeForSymbol(this.currentSymbol);
+            await this.initDatafeed(exchange);
             
-            // Initialize TradingView widget with HyperLiquid datafeed
+            // Initialize TradingView widget with appropriate datafeed
             await this.initTradingViewWidget();
             
             // Setup UI event listeners
@@ -43,12 +59,85 @@ class TradingViewApp {
             this.isInitialized = true;
             this.showLoading(false);
             
-            console.log('TradingView app initialized successfully');
+            console.log('TradingView app initialized successfully with', exchange);
             
         } catch (error) {
             console.error('Failed to initialize app:', error);
             this.showError('Failed to initialize application. Please refresh the page.');
             this.showLoading(false);
+        }
+    }
+    
+    /**
+     * Initialize datafeed based on exchange
+     * @param {string} exchange - 'HYPERLIQUID' or 'OSTIUM'
+     */
+    async initDatafeed(exchange) {
+        console.log(`Initializing ${exchange} datafeed`);
+        
+        if (exchange === 'OSTIUM') {
+            // Initialize Ostium datafeed with credentials from config
+            this.datafeed = new OstiumDatafeed(config.ostium.apiKey, config.ostium.apiSecret);
+            this.currentExchange = 'OSTIUM';
+        } else {
+            // Initialize HyperLiquid datafeed (default)
+            this.datafeed = new HyperLiquidDatafeed();
+            this.currentExchange = 'HYPERLIQUID';
+        }
+        
+        await this.datafeed.initialize();
+        console.log(`${exchange} datafeed initialized`);
+    }
+    
+    /**
+     * Change symbol and automatically switch exchange if needed
+     * @param {string} symbol - New symbol to display
+     */
+    async changeSymbol(symbol) {
+        try {
+            console.log(`Changing symbol to: ${symbol}`);
+            
+            // Determine which exchange this symbol needs
+            const requiredExchange = this.getExchangeForSymbol(symbol);
+            
+            // Check if we need to switch exchanges
+            if (requiredExchange !== this.currentExchange) {
+                console.log(`Switching from ${this.currentExchange} to ${requiredExchange} for symbol ${symbol}`);
+                
+                this.showLoading(true);
+                
+                // Cleanup current datafeed
+                if (this.datafeed && this.datafeed.destroy) {
+                    this.datafeed.destroy();
+                }
+                
+                // Remove current widget
+                if (this.widget) {
+                    this.widget.remove();
+                    this.widget = null;
+                }
+                
+                // Initialize new datafeed
+                await this.initDatafeed(requiredExchange);
+                
+                // Recreate widget with new datafeed
+                await this.initTradingViewWidget(symbol);
+                
+                this.showLoading(false);
+            } else {
+                // Same exchange, just change symbol in TradingView
+                if (this.widget) {
+                    const exchangePrefix = requiredExchange === 'OSTIUM' ? 'OSTIUM' : 'HYPERLIQUID';
+                    this.widget.setSymbol(`${exchangePrefix}:${symbol}USD`, this.currentInterval);
+                }
+            }
+            
+            this.currentSymbol = symbol;
+            console.log(`Symbol changed to ${symbol} on ${requiredExchange}`);
+            
+        } catch (error) {
+            console.error('Error changing symbol:', error);
+            this.showError(`Failed to change to ${symbol}`);
         }
     }
 
@@ -79,8 +168,9 @@ class TradingViewApp {
 
     /**
      * Initialize TradingView widget
+     * @param {string} symbol - Optional symbol override
      */
-    async initTradingViewWidget() {
+    async initTradingViewWidget(symbol = null) {
         return new Promise((resolve, reject) => {
             try {
                 // Clear any existing chart container
@@ -89,8 +179,15 @@ class TradingViewApp {
                     container.innerHTML = '';
                 }
                 
+                // Determine symbol and exchange prefix
+                const symbolToUse = symbol || this.currentSymbol;
+                const exchangePrefix = this.currentExchange === 'OSTIUM' ? 'OSTIUM' : 'HYPERLIQUID';
+                const fullSymbol = `${exchangePrefix}:${symbolToUse}USD`;
+                
+                console.log(`Initializing TradingView widget with symbol: ${fullSymbol}`);
+                
                 this.widget = new TradingView.widget({
-                    symbol: 'HYPERLIQUID:BTCUSD',
+                    symbol: fullSymbol,
                     interval: '1H',
                     container: 'tv_chart_container',
                     datafeed: this.datafeed,
