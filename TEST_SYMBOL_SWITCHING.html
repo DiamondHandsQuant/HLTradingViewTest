@@ -128,14 +128,10 @@
             <button class="crypto" onclick="testSymbol('DOGE')">DOGE</button>
         </div>
         
-        <h3 style="margin-top: 30px;">🏛️ RWA Symbols (Ostium)</h3>
+        <h3 style="margin-top: 30px;">🏛️ RWA Symbols (Ostium) - Test Symbols</h3>
         <div class="button-grid">
-            <button class="rwa" onclick="testSymbol('GOLD')">GOLD</button>
-            <button class="rwa" onclick="testSymbol('SILVER')">SILVER</button>
-            <button class="rwa" onclick="testSymbol('OIL')">OIL</button>
-            <button class="rwa" onclick="testSymbol('SPX')">SPX</button>
-            <button class="rwa" onclick="testSymbol('NDX')">NDX</button>
-            <button class="rwa" onclick="testSymbol('EURUSD')">EURUSD</button>
+            <button class="rwa" onclick="testSymbol('SPX')">SPX (S&P 500)</button>
+            <button class="rwa" onclick="testSymbol('EURUSD')">EURUSD (EUR/USD)</button>
         </div>
         
         <h3 style="margin-top: 30px;">📊 Activity Log</h3>
@@ -146,7 +142,7 @@
     
     <script>
         // Simulated exchange detection (matches app.js logic)
-        const rwaSymbols = ['GOLD', 'SILVER', 'OIL', 'SPX', 'NDX', 'EURUSD', 'GBPUSD'];
+        const rwaSymbols = ['SPX', 'EURUSD'];
         let currentExchange = 'HYPERLIQUID';
         let currentSymbol = null;
         

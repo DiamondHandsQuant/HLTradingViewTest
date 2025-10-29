@@ -9,30 +9,15 @@ class TradingViewApp {
         this.datafeed = null;
         this.currentSymbol = 'BTC';
         this.currentInterval = '1h';
-        this.currentExchange = null; // Track current exchange (HYPERLIQUID or OSTIUM)
         this.isInitialized = false;
         this.priceUpdateInterval = null;
-        
-        // RWA symbols list - these will use Ostium
-        this.rwaSymbols = ['GOLD', 'SILVER', 'OIL', 'SPX', 'NDX', 'EURUSD', 'GBPUSD']; // Add actual RWA symbols
+        this.activeOrderBookSubscription = null; // Track active order book subscription
         
         // Bind methods
         this.handleResize = this.handleResize.bind(this);
         this.updatePriceInfo = this.updatePriceInfo.bind(this);
     }
     
-    /**
-     * Determine which exchange to use for a symbol
-     * @param {string} symbol - The symbol to check
-     * @returns {string} - 'OSTIUM' for RWA, 'HYPERLIQUID' for crypto
-     */
-    getExchangeForSymbol(symbol) {
-        // Check if symbol is an RWA asset
-        const symbolUpper = symbol.toUpperCase();
-        const isRWA = this.rwaSymbols.some(rwa => symbolUpper.includes(rwa));
-        return isRWA ? 'OSTIUM' : 'HYPERLIQUID';
-    }
-
     /**
      * Initialize the application
      */
@@ -43,11 +28,10 @@ class TradingViewApp {
             // Wait for TradingView to load
             await this.waitForTradingView();
             
-            // Determine exchange based on initial symbol
-            const exchange = this.getExchangeForSymbol(this.currentSymbol);
-            await this.initDatafeed(exchange);
+            // Initialize unified datafeed (handles both exchanges)
+            await this.initDatafeed();
             
-            // Initialize TradingView widget with appropriate datafeed
+            // Initialize TradingView widget with unified datafeed
             await this.initTradingViewWidget();
             
             // Setup UI event listeners
@@ -59,7 +43,7 @@ class TradingViewApp {
             this.isInitialized = true;
             this.showLoading(false);
             
-            console.log('TradingView app initialized successfully with', exchange);
+            console.log('✅ TradingView app initialized successfully with Unified Datafeed');
             
         } catch (error) {
             console.error('Failed to initialize app:', error);
@@ -69,76 +53,22 @@ class TradingViewApp {
     }
     
     /**
-     * Initialize datafeed based on exchange
-     * @param {string} exchange - 'HYPERLIQUID' or 'OSTIUM'
+     * Initialize unified datafeed (handles both HyperLiquid and Ostium)
      */
-    async initDatafeed(exchange) {
-        console.log(`Initializing ${exchange} datafeed`);
+    async initDatafeed() {
+        console.log('🔄 Initializing Unified Datafeed...');
         
-        if (exchange === 'OSTIUM') {
-            // Initialize Ostium datafeed with credentials from config
-            this.datafeed = new OstiumDatafeed(config.ostium.apiKey, config.ostium.apiSecret);
-            this.currentExchange = 'OSTIUM';
-        } else {
-            // Initialize HyperLiquid datafeed (default)
-            this.datafeed = new HyperLiquidDatafeed();
-            this.currentExchange = 'HYPERLIQUID';
-        }
+        // Create unified datafeed with Ostium credentials and URLs
+        this.datafeed = new UnifiedDatafeed(
+            config.ostium.apiKey, 
+            config.ostium.apiSecret,
+            config.ostium.apiURL,
+            config.ostium.sseURL
+        );
         
         await this.datafeed.initialize();
-        console.log(`${exchange} datafeed initialized`);
-    }
-    
-    /**
-     * Change symbol and automatically switch exchange if needed
-     * @param {string} symbol - New symbol to display
-     */
-    async changeSymbol(symbol) {
-        try {
-            console.log(`Changing symbol to: ${symbol}`);
-            
-            // Determine which exchange this symbol needs
-            const requiredExchange = this.getExchangeForSymbol(symbol);
-            
-            // Check if we need to switch exchanges
-            if (requiredExchange !== this.currentExchange) {
-                console.log(`Switching from ${this.currentExchange} to ${requiredExchange} for symbol ${symbol}`);
-                
-                this.showLoading(true);
-                
-                // Cleanup current datafeed
-                if (this.datafeed && this.datafeed.destroy) {
-                    this.datafeed.destroy();
-                }
-                
-                // Remove current widget
-                if (this.widget) {
-                    this.widget.remove();
-                    this.widget = null;
-                }
-                
-                // Initialize new datafeed
-                await this.initDatafeed(requiredExchange);
-                
-                // Recreate widget with new datafeed
-                await this.initTradingViewWidget(symbol);
-                
-                this.showLoading(false);
-            } else {
-                // Same exchange, just change symbol in TradingView
-                if (this.widget) {
-                    const exchangePrefix = requiredExchange === 'OSTIUM' ? 'OSTIUM' : 'HYPERLIQUID';
-                    this.widget.setSymbol(`${exchangePrefix}:${symbol}USD`, this.currentInterval);
-                }
-            }
-            
-            this.currentSymbol = symbol;
-            console.log(`Symbol changed to ${symbol} on ${requiredExchange}`);
-            
-        } catch (error) {
-            console.error('Error changing symbol:', error);
-            this.showError(`Failed to change to ${symbol}`);
-        }
+        console.log('✅ Unified Datafeed ready - supports both HyperLiquid and Ostium');
+        console.log(`   Ostium API URL: ${config.ostium.apiURL}`);
     }
 
     /**
@@ -179,12 +109,20 @@ class TradingViewApp {
                     container.innerHTML = '';
                 }
                 
-                // Determine symbol and exchange prefix
+                // Determine symbol - let unified datafeed handle routing
                 const symbolToUse = symbol || this.currentSymbol;
-                const exchangePrefix = this.currentExchange === 'OSTIUM' ? 'OSTIUM' : 'HYPERLIQUID';
-                const fullSymbol = `${exchangePrefix}:${symbolToUse}USD`;
+                const exchange = this.datafeed.getExchangeForSymbol(symbolToUse);
+                const exchangePrefix = exchange === 'OSTIUM' ? 'OSTIUM' : 'HYPERLIQUID';
                 
-                console.log(`Initializing TradingView widget with symbol: ${fullSymbol}`);
+                // Smart suffix handling
+                let symbolSuffix = '';
+                if (!symbolToUse.includes('USD') && !symbolToUse.includes('EUR') && !symbolToUse.includes('GBP')) {
+                    symbolSuffix = 'USD';
+                }
+                
+                const fullSymbol = `${exchangePrefix}:${symbolToUse}${symbolSuffix}`;
+                
+                console.log(`🎯 Initializing TradingView widget with symbol: ${fullSymbol} (${exchange})`);
                 
                 this.widget = new TradingView.widget({
                     symbol: fullSymbol,
@@ -250,10 +188,9 @@ class TradingViewApp {
                     console.log('TradingView chart is ready');
                     this.setupChartEventListeners();
                     
-                    // Initialize order book after chart is ready
-                    this.initOrderBook().catch(error => {
-                        console.error('Failed to initialize order book:', error);
-                    });
+                    // Set initial order book visibility
+                    const initialExchange = this.datafeed.getExchangeForSymbol(symbolToUse);
+                    this.updateOrderBookVisibility(initialExchange);
                     
                     resolve();
                 });
@@ -274,10 +211,36 @@ class TradingViewApp {
         try {
             // Listen for symbol changes
             this.widget.subscribe('onSymbolChanged', (symbolInfo) => {
-                console.log('Symbol changed:', symbolInfo);
+                console.log('🔄 SYMBOL CHANGED EVENT FIRED');
+                console.log('   Symbol Info:', symbolInfo);
+                
                 if (symbolInfo && symbolInfo.name) {
-                    this.currentSymbol = symbolInfo.name.replace('USD', '');
+                    // Extract clean symbol name
+                    let newSymbol = symbolInfo.name;
+                    
+                    // Remove USD suffix carefully (not for forex pairs)
+                    if (newSymbol.endsWith('USD') && !newSymbol.match(/^[A-Z]{3}USD$/)) {
+                        newSymbol = newSymbol.replace(/USD$/, '');
+                    }
+                    
+                    console.log(`   Old symbol: ${this.currentSymbol}`);
+                    console.log(`   New symbol: ${newSymbol}`);
+                    
+                    // CRITICAL: Clean up old subscriptions IMMEDIATELY
+                    if (this.currentSymbol !== newSymbol) {
+                        console.log(`   ⚠️  Symbol actually changed, cleaning up old subscriptions`);
+                        
+                        // Update order book visibility based on exchange
+                        const exchange = this.datafeed.getExchangeForSymbol(newSymbol);
+                        console.log(`   New exchange: ${exchange}`);
+                        
+                        this.updateOrderBookVisibility(exchange);
+                    }
+                    
+                    this.currentSymbol = newSymbol;
                     this.updateSymbolDisplay();
+                    
+                    console.log(`✅ Symbol change complete: ${newSymbol}`);
                 }
             });
 
@@ -419,7 +382,73 @@ class TradingViewApp {
     updateSymbolDisplay() {
         const symbolNameEl = document.querySelector('.symbol-name');
         if (symbolNameEl) {
-            symbolNameEl.textContent = `${this.currentSymbol}USD`;
+            // For forex pairs, don't add USD
+            const displaySymbol = this.currentSymbol.includes('USD') || 
+                                 this.currentSymbol.includes('EUR') || 
+                                 this.currentSymbol.includes('GBP')
+                ? this.currentSymbol
+                : `${this.currentSymbol}USD`;
+            symbolNameEl.textContent = displaySymbol;
+        }
+    }
+
+    /**
+     * Update order book visibility based on exchange
+     * Ostium doesn't have order book data
+     */
+    updateOrderBookVisibility(exchange) {
+        const orderBookContainer = document.querySelector('.orderbook-container');
+        
+        if (orderBookContainer) {
+            if (exchange === 'OSTIUM') {
+                // Hide order book for Ostium symbols
+                orderBookContainer.style.display = 'none';
+                console.log('ℹ️  Order book hidden (not available for Ostium)');
+                
+                // IMPORTANT: Clean up HyperLiquid subscriptions
+                this.cleanupOrderBook();
+                
+            } else {
+                // Show order book for HyperLiquid symbols
+                orderBookContainer.style.display = 'flex';
+                console.log('✅ Order book visible (HyperLiquid)');
+                
+                // Clean up old subscription first
+                this.cleanupOrderBook();
+                
+                // Re-initialize order book for new symbol
+                this.initOrderBook().catch(err => {
+                    console.error('Failed to reinitialize order book:', err);
+                });
+            }
+        }
+    }
+
+    /**
+     * Clean up active order book subscriptions
+     */
+    cleanupOrderBook() {
+        if (this.activeOrderBookSubscription) {
+            console.log('🧹 Cleaning up order book subscription for', this.activeOrderBookSubscription.symbol);
+            
+            // Get the API instance
+            const api = this.datafeed.getAPIForSymbol(this.activeOrderBookSubscription.symbol);
+            
+            // Unsubscribe from order book if API supports it
+            if (api && api.unsubscribeFromOrderBook) {
+                api.unsubscribeFromOrderBook(this.activeOrderBookSubscription.symbol);
+                console.log('✅ Unsubscribe message sent');
+            }
+            
+            // AGGRESSIVE: Also disconnect WebSocket to force stop all subscriptions
+            if (api && api.disconnectWebSocket) {
+                console.log('⚠️  Force disconnecting WebSocket to stop all HyperLiquid subscriptions');
+                api.disconnectWebSocket();
+            }
+            
+            this.activeOrderBookSubscription = null;
+        } else {
+            console.log('ℹ️  No active order book subscription to clean up');
         }
     }
 
@@ -492,15 +521,28 @@ class TradingViewApp {
      * Initialize order book
      */
     async initOrderBook() {
-        console.log('📚 Initializing order book...');
+        console.log('📚 Initializing order book for', this.currentSymbol);
         
         try {
-            // Subscribe to order book updates
-            await this.datafeed.api.subscribeToOrderBook('BTC', (orderBook) => {
-                this.updateOrderBook(orderBook);
-            });
+            // Get the appropriate API for the current symbol
+            const api = this.datafeed.getAPIForSymbol(this.currentSymbol);
             
-            console.log('✅ Order book subscription successful');
+            // Only HyperLiquid supports order book currently
+            if (api && api.subscribeToOrderBook) {
+                await api.subscribeToOrderBook(this.currentSymbol, (orderBook) => {
+                    this.updateOrderBook(orderBook);
+                });
+                
+                // Track the active subscription
+                this.activeOrderBookSubscription = {
+                    symbol: this.currentSymbol,
+                    api: api
+                };
+                
+                console.log('✅ Order book subscription successful for', this.currentSymbol);
+            } else {
+                console.log('ℹ️  Order book not available for', this.currentSymbol);
+            }
         } catch (error) {
             console.error('❌ Failed to initialize order book:', error);
         }
@@ -599,6 +641,9 @@ class TradingViewApp {
         if (this.priceUpdateInterval) {
             clearInterval(this.priceUpdateInterval);
         }
+
+        // Clean up order book subscriptions
+        this.cleanupOrderBook();
 
         if (this.datafeed) {
             this.datafeed.destroy();

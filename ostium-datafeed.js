@@ -4,8 +4,8 @@
  */
 
 class OstiumDatafeed {
-    constructor(apiKey, apiSecret) {
-        this.api = new OstiumAPI(apiKey, apiSecret);
+    constructor(apiKey, apiSecret, apiURL = null, sseURL = null) {
+        this.api = new OstiumAPI(apiKey, apiSecret, apiURL, sseURL);
         this.supportedResolutions = ['1', '3', '5', '15', '30', '60', '120', '240', '360', '480', '720', '1D', '3D', '1W'];
         this.config = {
             supported_resolutions: this.supportedResolutions,
@@ -33,39 +33,62 @@ class OstiumDatafeed {
      */
     async initialize() {
         try {
-            console.log('Initializing Ostium datafeed...');
+            console.log('🟠 Initializing Ostium datafeed...');
             
-            // Connect to SSE for real-time prices
-            await this.api.connectSSE();
+            // Register symbols first (required for chart data)
+            const rwaSymbols = [
+                { 
+                    symbol: 'EURUSD', 
+                    fullName: 'OSTIUM:EURUSD',
+                    description: 'EUR/USD Forex Pair', 
+                    pricescale: 100000 
+                },
+                { 
+                    symbol: 'SPX', 
+                    fullName: 'OSTIUM:SPX',
+                    description: 'S&P 500 Index', 
+                    pricescale: 100 
+                }
+            ];
             
-            // Create default symbols
-            const defaultSymbols = ['BTC', 'ETH', 'SOL', 'AVAX', 'MATIC'];
-            
-            defaultSymbols.forEach(symbol => {
+            rwaSymbols.forEach(({ symbol, fullName, description, pricescale }) => {
                 const symbolInfo = {
                     name: symbol,
-                    full_name: `OSTIUM:${symbol}USD`,
-                    description: `${symbol}/USD`,
-                    type: 'crypto',
+                    ticker: symbol,
+                    full_name: fullName,
+                    description: description,
+                    type: 'index',
                     session: '24x7',
                     timezone: 'Etc/UTC',
                     exchange: 'OSTIUM',
+                    listed_exchange: 'OSTIUM',
                     minmov: 1,
-                    pricescale: 100000000, // 8 decimal places
+                    pricescale: pricescale,
                     has_intraday: true,
+                    has_daily: true,
                     has_weekly_and_monthly: true,
                     supported_resolutions: this.supportedResolutions,
-                    volume_precision: 8,
+                    volume_precision: 2,
                     data_status: 'streaming',
-                    currency_code: 'USD'
+                    currency_code: 'USD',
+                    format: 'price'
                 };
                 
                 this.symbols.set(symbol, symbolInfo);
+                console.log(`✅ Registered Ostium symbol: ${symbol} (${description})`);
             });
             
-            console.log('Ostium datafeed initialized with', this.symbols.size, 'symbols');
+            console.log('✅ Ostium datafeed initialized with', this.symbols.size, 'RWA symbols:', Array.from(this.symbols.keys()));
+            
+            // Try to connect to SSE for real-time updates (non-blocking)
+            // SSE is optional - historical data works without it
+            this.api.connectSSE().catch(error => {
+                console.warn('⚠️  Ostium SSE connection failed (real-time updates disabled):', error.message);
+                console.log('ℹ️  Historical chart data will still work via REST API');
+            });
+            
         } catch (error) {
-            console.error('Failed to initialize Ostium datafeed:', error);
+            console.error('❌ Failed to initialize Ostium datafeed:', error);
             throw error;
         }
     }
@@ -113,49 +136,32 @@ class OstiumDatafeed {
         console.log('Resolving Ostium symbol:', symbolName);
         
         try {
-            // Extract symbol from full name (e.g., "OSTIUM:BTCUSD" -> "BTC")
+            // Extract symbol from full name (e.g., "OSTIUM:SPX" -> "SPX", "OSTIUM:EURUSD" -> "EURUSD")
             let symbol = symbolName;
             if (symbolName.includes(':')) {
-                symbol = symbolName.split(':')[1].replace('USD', '');
+                symbol = symbolName.split(':')[1];
+            }
+            
+            // Remove USD suffix only if it doesn't look like a forex pair
+            if (symbol.endsWith('USD') && !symbol.match(/^[A-Z]{3}USD$/)) {
+                symbol = symbol.replace(/USD$/, '');
             }
             
             const symbolInfo = this.symbols.get(symbol);
             
             if (symbolInfo) {
-                console.log('Symbol resolved:', symbolInfo);
+                console.log('✅ Symbol resolved:', symbol, symbolInfo);
                 setTimeout(() => {
                     onSymbolResolvedCallback(symbolInfo);
                 }, 0);
             } else {
-                // Create a default symbol info if not found
-                const defaultSymbolInfo = {
-                    name: symbol,
-                    full_name: `OSTIUM:${symbol}USD`,
-                    description: `${symbol}/USD`,
-                    type: 'crypto',
-                    session: '24x7',
-                    timezone: 'Etc/UTC',
-                    exchange: 'OSTIUM',
-                    minmov: 1,
-                    pricescale: 100000000,
-                    has_intraday: true,
-                    has_weekly_and_monthly: true,
-                    supported_resolutions: this.supportedResolutions,
-                    volume_precision: 8,
-                    data_status: 'streaming',
-                    currency_code: 'USD'
-                };
-                
-                this.symbols.set(symbol, defaultSymbolInfo);
-                console.log('Created default symbol info:', defaultSymbolInfo);
-                
-                setTimeout(() => {
-                    onSymbolResolvedCallback(defaultSymbolInfo);
-                }, 0);
+                console.error('❌ Symbol not found in Ostium symbols:', symbol);
+                console.log('Available symbols:', Array.from(this.symbols.keys()));
+                onResolveErrorCallback(`Symbol ${symbol} not found in Ostium`);
             }
         } catch (error) {
             console.error('Error resolving symbol:', error);
-            onResolveErrorCallback('Symbol not found');
+            onResolveErrorCallback('Symbol resolution error: ' + error.message);
         }
     }
 
@@ -167,23 +173,33 @@ class OstiumDatafeed {
         const { from, to, firstDataRequest } = periodParams;
         
         try {
-            console.log(`Getting Ostium bars for ${symbolInfo.name} ${resolution} from ${new Date(from * 1000)} to ${new Date(to * 1000)}`);
+            console.log(`🟠 OSTIUM DATAFEED - getBars called`);
+            console.log(`   Symbol: ${symbolInfo.name}`);
+            console.log(`   Resolution: ${resolution}`);
+            console.log(`   From: ${new Date(from * 1000).toISOString()}`);
+            console.log(`   To: ${new Date(to * 1000).toISOString()}`);
+            console.log(`   First request: ${firstDataRequest}`);
             
             // Extract symbol
             const symbol = symbolInfo.name;
             
             // Convert TradingView resolution to Ostium interval format
             const interval = this.convertResolution(resolution);
+            console.log(`   Converted interval: ${interval}`);
             
             // Convert timestamps from seconds to milliseconds
             const startTime = from * 1000;
             const endTime = to * 1000;
             
+            console.log(`🌐 Calling Ostium API.getCandles(${symbol}, ${interval}, ...)`);
+            
             // Fetch candles from Ostium API
             const candles = await this.api.getCandles(symbol, interval, startTime, endTime);
             
+            console.log(`📦 Received ${candles?.length || 0} candles from Ostium API`);
+            
             if (!candles || candles.length === 0) {
-                console.log('No Ostium data available for this period');
+                console.warn('⚠️  No Ostium data available for this period');
                 onHistoryCallback([], { noData: true });
                 return;
             }
@@ -204,11 +220,12 @@ class OstiumDatafeed {
                 this.lastBars.set(`${symbol}_${resolution}`, lastBar);
             }
             
-            console.log(`Received ${bars.length} bars from Ostium`);
+            console.log(`✅ OSTIUM: Returning ${bars.length} bars to TradingView`);
             onHistoryCallback(bars, { noData: false });
             
         } catch (error) {
-            console.error('Error getting Ostium bars:', error);
+            console.error('❌ OSTIUM ERROR getting bars:', error);
+            console.error('   Stack:', error.stack);
             onErrorCallback(error.message || 'Failed to fetch data from Ostium');
         }
     }

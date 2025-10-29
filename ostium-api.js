@@ -4,9 +4,9 @@
  */
 
 class OstiumAPI {
-    constructor(apiKey, apiSecret) {
-        this.baseURL = 'https://api.ostium.io'; // Update with actual Ostium API URL
-        this.sseURL = 'https://metadata-backend.ostium.io/price-updates/all-feeds-auth';
+    constructor(apiKey, apiSecret, baseURL = null, sseURL = null) {
+        this.baseURL = baseURL || 'https://history.ostium.io';
+        this.sseURL = sseURL || 'https://metadata-backend.ostium.io/price-updates/all-feeds-auth';
         this.apiKey = apiKey;
         this.apiSecret = apiSecret;
         this.sseReader = null;
@@ -14,9 +14,10 @@ class OstiumAPI {
         this.subscribers = new Map();
         this.priceCache = new Map();
         this.reconnectAttempts = 0;
-        this.maxReconnectAttempts = 5;
+        this.maxReconnectAttempts = 1; // Only try once (CORS issues expected)
         this.reconnectDelay = 1000;
         this.isConnecting = false;
+        this.sseConnected = false;
         this.buffer = ''; // Buffer for incomplete SSE data
         
         // Rate limiting
@@ -63,9 +64,10 @@ class OstiumAPI {
                 throw new Error(`SSE connection failed: ${response.status} ${response.statusText}`);
             }
 
-            console.log('SSE connection established');
+            console.log('✅ SSE connection established');
             this.reconnectAttempts = 0;
             this.isConnecting = false;
+            this.sseConnected = true;
             
             // Start reading the stream
             this.readSSEStream(response.body);
@@ -78,9 +80,15 @@ class OstiumAPI {
                 return;
             }
             
-            console.error('SSE connection error:', error);
+            console.warn('⚠️  SSE connection error:', error.message);
             
-            // Implement reconnection logic
+            // Don't retry if CORS error (won't work from browser anyway)
+            if (error.message && error.message.includes('fetch')) {
+                console.log('ℹ️  SSE not available (likely CORS restriction). Historical data will still work.');
+                return;
+            }
+            
+            // Implement reconnection logic for other errors
             if (this.reconnectAttempts < this.maxReconnectAttempts) {
                 this.reconnectAttempts++;
                 const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts - 1);
@@ -90,7 +98,7 @@ class OstiumAPI {
                     this.connectSSE();
                 }, delay);
             } else {
-                console.error('Max reconnection attempts reached');
+                console.log('ℹ️  SSE connection attempts exhausted. Continuing without real-time updates.');
             }
         }
     }
@@ -312,7 +320,7 @@ class OstiumAPI {
 
     /**
      * Get historical candle data from Ostium
-     * @param {string} symbol - Symbol (e.g., 'BTC', 'ETH')
+     * @param {string} symbol - Symbol (e.g., 'SPX', 'EURUSD')
      * @param {string} interval - Time interval (e.g., '1m', '5m', '1h', '1d')
      * @param {number} startTime - Start timestamp in milliseconds
      * @param {number} endTime - End timestamp in milliseconds
@@ -320,54 +328,88 @@ class OstiumAPI {
      */
     async getCandles(symbol, interval, startTime, endTime) {
         try {
-            console.log(`Fetching Ostium candles for ${symbol} ${interval} from ${new Date(startTime)} to ${new Date(endTime)}`);
+            console.log(`🔍 Fetching Ostium candles for ${symbol} ${interval}`);
+            console.log(`   From: ${new Date(startTime).toISOString()}`);
+            console.log(`   To: ${new Date(endTime).toISOString()}`);
             
             // Validate input parameters
             if (!symbol || !interval || !startTime || !endTime) {
                 throw new Error('Missing required parameters');
             }
             
-            // Note: Update this endpoint based on actual Ostium API documentation
-            const url = `${this.baseURL}/v1/candles`;
+            // Convert interval format (1m -> 1, 1h -> 60, 1d -> D)
+            const resolution = this.convertIntervalToResolution(interval);
+            
+            // Ensure symbol has USD suffix for Ostium
+            const asset = symbol.endsWith('USD') ? symbol : `${symbol}USD`;
+            
+            // Call Ostium API
+            const url = `${this.baseURL}/ohlc/getHistorical`;
             const body = {
-                symbol: symbol,
-                interval: interval,
-                startTime: startTime,
-                endTime: endTime
+                asset: asset,
+                resolution: resolution,
+                fromTimestampSeconds: Math.floor(startTime / 1000),
+                toTimestampSeconds: Math.floor(endTime / 1000)
             };
+            
+            console.log(`   Requesting: ${JSON.stringify(body)}`);
             
             const response = await this.makeRateLimitedRequest(url, {
                 method: 'POST',
                 body: JSON.stringify(body)
             });
             
-            const data = await response.json();
-            console.log(`Received ${data.length || 0} candles from Ostium`);
+            const result = await response.json();
+            console.log(`✅ Received ${result.data?.length || 0} candles from Ostium`);
             
-            return this.formatCandles(data);
+            // Format candles
+            const formattedCandles = this.formatOstiumCandles(result.data || []);
+            
+            return formattedCandles;
             
         } catch (error) {
-            console.error('Error fetching Ostium candles:', error);
+            console.error('❌ Error fetching Ostium candles:', error);
             throw error;
         }
     }
 
     /**
-     * Format candles to TradingView format
+     * Convert interval string to Ostium resolution format
      */
-    formatCandles(data) {
+    convertIntervalToResolution(interval) {
+        const intervalMap = {
+            '1m': '1',
+            '2m': '2',
+            '5m': '5',
+            '15m': '15',
+            '30m': '30',
+            '1h': '60',
+            '2h': '120',
+            '4h': '240',
+            '6h': '360',
+            '12h': '720',
+            '1d': 'D'
+        };
+        
+        return intervalMap[interval] || '60'; // Default to 1 hour
+    }
+
+    /**
+     * Format Ostium candles to TradingView format
+     */
+    formatOstiumCandles(data) {
         if (!Array.isArray(data)) {
             console.warn('Invalid candles data format:', data);
             return [];
         }
         
         return data.map(candle => ({
-            time: candle.timestamp || candle.time || candle.t,
-            open: parseFloat(candle.open || candle.o),
-            high: parseFloat(candle.high || candle.h),
-            low: parseFloat(candle.low || candle.l),
-            close: parseFloat(candle.close || candle.c),
-            volume: parseFloat(candle.volume || candle.v || 0)
+            time: Math.floor(candle.time / 1000), // Convert ms to seconds
+            open: parseFloat(candle.open),
+            high: parseFloat(candle.high),
+            low: parseFloat(candle.low),
+            close: parseFloat(candle.close),
+            volume: 0 // Ostium doesn't provide volume
         }));
     }
 
@@ -388,16 +430,24 @@ class OstiumAPI {
     unsubscribe(symbol, callback) {
         if (this.subscribers.has(symbol)) {
             const callbacks = this.subscribers.get(symbol);
+            const beforeCount = callbacks.length;
             const index = callbacks.indexOf(callback);
+            
             if (index > -1) {
                 callbacks.splice(index, 1);
-                console.log(`Unsubscribed from ${symbol}`);
+                const afterCount = callbacks.length;
+                console.log(`✅ Unsubscribed from ${symbol}: ${beforeCount} → ${afterCount} subscribers remaining`);
+            } else {
+                console.warn(`⚠️  Callback not found for ${symbol}, total subscribers: ${beforeCount}`);
             }
             
             // Clean up if no more subscribers
             if (callbacks.length === 0) {
                 this.subscribers.delete(symbol);
+                console.log(`🗑️  No more subscribers for ${symbol}, removed from map`);
             }
+        } else {
+            console.warn(`⚠️  No subscribers found for ${symbol}`);
         }
     }
 

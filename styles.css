@@ -49,6 +49,19 @@ body {
     display: flex;
     flex-direction: column;
     min-width: 280px;
+    transition: all 0.3s ease;
+}
+
+/* When order book is hidden, chart takes full width */
+.orderbook-container[style*="display: none"],
+.orderbook-container[style*="display:none"] {
+    flex: 0 0 0%;
+    min-width: 0;
+    border-left: none;
+}
+
+.chart-container {
+    transition: flex 0.3s ease;
 }
 
 .orderbook-header {

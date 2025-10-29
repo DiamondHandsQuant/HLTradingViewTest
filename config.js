@@ -9,12 +9,10 @@ const config = {
         wsURL: 'wss://api.hyperliquid.xyz/ws'
     },
     ostium: {
-        // Update these URLs if different
-        apiURL: 'https://api.ostium.io',
+        apiURL: 'https://history.ostium.io',
         sseURL: 'https://metadata-backend.ostium.io/price-updates/all-feeds-auth',
         
-        // API credentials - REPLACE WITH YOUR ACTUAL CREDENTIALS
-        // DO NOT commit real credentials to version control
+        // API credentials
         apiKey: 'PulseTrader01FX2EtClaGlu1FsXry0ZM42HzbXKv20sCn2JJ',
         apiSecret: 'mmprejrGVklxRjLZM4idXDoZk8J39vul8i6AnX9O5zMtY72U'
     }
