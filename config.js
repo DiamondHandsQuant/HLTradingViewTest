@@ -10,7 +10,8 @@ const config = {
     },
     ostium: {
         apiURL: 'https://history.ostium.io',
-        sseURL: 'https://metadata-backend.ostium.io/price-updates/all-feeds-auth',
+        // Use local proxy to bypass CORS for SSE
+        sseURL: 'http://localhost:3001/sse',
         
         // API credentials
         apiKey: 'PulseTrader01FX2EtClaGlu1FsXry0ZM42HzbXKv20sCn2JJ',

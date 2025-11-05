@@ -12,14 +12,17 @@
     "url": "https://github.com/DiamondHandsQuant/HLTradingViewTest/issues"
   },
   "scripts": {
-    "start": "npx http-server -p 8080 -c-1 --cors",
-    "dev": "npx http-server -p 8080 -c-1 --cors",
+    "start": "npm run dev",
+    "dev": "npx concurrently -n \"APP,PROXY\" -c \"cyan,magenta\" \"npx http-server -p 8080 -c-1 --cors\" \"node sse-proxy.js\"",
+    "proxy": "node sse-proxy.js",
+    "app": "npx http-server -p 8080 -c-1 --cors",
     "build": "echo 'No build step required for static files'",
     "serve": "npx http-server -p 8080 -c-1 --cors",
     "test": "echo 'No tests specified' && exit 0"
   },
   "dependencies": {
-    "http-server": "^14.1.1"
+    "http-server": "^14.1.1",
+    "concurrently": "^8.2.2"
   },
   "devDependencies": {},
   "engines": {

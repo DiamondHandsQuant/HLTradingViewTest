@@ -25,6 +25,17 @@ class OstiumAPI {
         this.minRequestInterval = 100; // Minimum 100ms between requests
         this.requestQueue = [];
         this.isProcessingQueue = false;
+        
+        // SSE "from" field to our symbol mapping
+        // SSE sends "from": "EUR", we need "EURUSD"
+        this.sseToSymbolMap = {
+            'EUR': 'EURUSD',
+            'GBP': 'GBPUSD',
+            'SPX': 'SPX',
+            'NDX': 'NDX',
+            'BTC': 'BTC',
+            'ETH': 'ETH'
+        };
     }
 
     /**
@@ -41,8 +52,12 @@ class OstiumAPI {
      * Uses fetch() with streaming instead of EventSource due to auth header requirement
      */
     async connectSSE() {
+        console.log('🔌 OSTIUM SSE: connectSSE() called');
+        console.log('   SSE URL:', this.sseURL);
+        console.log('   API Key:', this.apiKey ? `${this.apiKey.substring(0, 10)}...` : 'MISSING');
+        
         if (this.isConnecting) {
-            console.log('SSE connection already in progress');
+            console.log('⏳ SSE connection already in progress');
             return;
         }
 
@@ -50,13 +65,17 @@ class OstiumAPI {
         this.sseAbortController = new AbortController();
 
         try {
-            console.log('Connecting to Ostium SSE...');
+            console.log('🌐 Attempting to fetch SSE stream...');
+            
+            // If using local proxy, don't send auth headers (proxy handles it)
+            const headers = { 'Accept': 'text/event-stream' };
+            if (!this.sseURL.includes('localhost')) {
+                // Only send auth for direct Ostium connection
+                headers['Authorization'] = this.getAuthHeader();
+            }
             
             const response = await fetch(this.sseURL, {
-                headers: {
-                    'Authorization': this.getAuthHeader(),
-                    'Accept': 'text/event-stream'
-                },
+                headers,
                 signal: this.sseAbortController.signal
             });
 
@@ -172,8 +191,10 @@ class OstiumAPI {
         }
         
         if (eventData) {
+            console.log('📡 Raw SSE data received:', eventData);
             try {
                 const data = JSON.parse(eventData);
+                console.log('📡 Parsed SSE data:', data);
                 this.handlePriceUpdate(data, eventType);
             } catch (error) {
                 console.error('Error parsing SSE data:', error, eventData);
@@ -185,18 +206,29 @@ class OstiumAPI {
      * Handle price update from SSE
      */
     handlePriceUpdate(data, eventType = 'message') {
-        console.log('Received price update:', data);
+        console.log('📊 Processing price update:', data);
+        console.log('   Available fields:', Object.keys(data));
         
-        // Extract symbol and price from Ostium data format
-        // Note: Adjust these fields based on actual Ostium SSE data structure
-        const symbol = data.symbol || data.feedName || data.ticker;
-        const price = data.price || data.last || data.close;
-        const timestamp = data.timestamp || Date.now();
+        // Extract symbol and price from Ostium SSE data format
+        // Ostium format: { "from": "BTC", "to": "USD", "mid": 109771.31, "bid": ..., "ask": ..., "timestampSeconds": ... }
+        const from = data.from;
+        const to = data.to;
+        
+        // Map SSE "from" field to our internal symbol
+        // EUR → EURUSD, SPX → SPX, BTC → BTC, etc.
+        const symbol = this.sseToSymbolMap[from] || from;
+        
+        const price = data.mid || data.close || data.last || data.price;
+        const timestamp = data.timestampSeconds ? data.timestampSeconds * 1000 : Date.now(); // Convert to milliseconds
+        
+        console.log(`   Extracted: from="${from}", to="${to}", symbol="${symbol}", price=${price}, timestamp=${timestamp}`);
         
         if (!symbol || !price) {
-            console.warn('Invalid price data:', data);
+            console.warn('⚠️  Invalid price data - missing symbol or price:', data);
             return;
         }
+        
+        console.log(`✅ Valid price update for ${symbol}: $${price}`);
         
         // Update price cache
         this.priceCache.set(symbol, { 
@@ -206,6 +238,9 @@ class OstiumAPI {
         });
         
         // Notify subscribers
+        const subscriberCount = this.subscribers.has(symbol) ? this.subscribers.get(symbol).length : 0;
+        console.log(`   Notifying ${subscriberCount} subscriber(s) for ${symbol}`);
+        
         if (this.subscribers.has(symbol)) {
             this.subscribers.get(symbol).forEach(callback => {
                 try {
@@ -219,6 +254,8 @@ class OstiumAPI {
                     console.error('Error in subscriber callback:', error);
                 }
             });
+        } else {
+            console.log(`   ℹ️  No subscribers for ${symbol}`);
         }
         
         // Also notify wildcard subscribers (listening to all symbols)

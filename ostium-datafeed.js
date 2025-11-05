@@ -82,7 +82,10 @@ class OstiumDatafeed {
             
             // Try to connect to SSE for real-time updates (non-blocking)
             // SSE is optional - historical data works without it
-            this.api.connectSSE().catch(error => {
+            console.log('🔌 Attempting to connect to Ostium SSE for real-time updates...');
+            this.api.connectSSE().then(() => {
+                console.log('✅ SSE connection initiated successfully');
+            }).catch(error => {
                 console.warn('⚠️  Ostium SSE connection failed (real-time updates disabled):', error.message);
                 console.log('ℹ️  Historical chart data will still work via REST API');
             });
