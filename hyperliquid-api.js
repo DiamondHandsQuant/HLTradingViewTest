@@ -416,6 +416,37 @@ class HyperLiquidAPI {
     }
 
     /**
+     * Force disconnect WebSocket and stop all subscriptions
+     */
+    disconnectWebSocket() {
+        console.log('🔌 Disconnecting HyperLiquid WebSocket');
+        
+        // Prevent reconnection
+        this.reconnectAttempts = this.maxReconnectAttempts;
+        
+        if (this.ws) {
+            console.log('   Closing WebSocket connection');
+            
+            // Remove event listeners to prevent reconnection
+            this.ws.onclose = null;
+            this.ws.onerror = null;
+            
+            // Close the connection
+            if (this.ws.readyState === WebSocket.OPEN || this.ws.readyState === WebSocket.CONNECTING) {
+                this.ws.close();
+            }
+            
+            this.ws = null;
+        }
+        
+        // Clear all subscribers
+        console.log(`   Clearing ${this.subscribers.size} subscription(s)`);
+        this.subscribers.clear();
+        
+        console.log('✅ HyperLiquid WebSocket disconnected and all subscriptions cleared');
+    }
+
+    /**
      * Subscribe to real-time candle updates
      * @param {string} coin - Symbol to subscribe to
      * @param {string} interval - Time interval
@@ -488,6 +519,38 @@ class HyperLiquidAPI {
             this.ws.send(JSON.stringify(subscriptionMessage));
         } else {
             console.warn(`⚠️ WebSocket not ready for order book subscription. State:`, this.ws?.readyState);
+        }
+    }
+
+    /**
+     * Unsubscribe from order book updates
+     * @param {string} coin - Symbol to unsubscribe from
+     */
+    unsubscribeFromOrderBook(coin) {
+        console.log(`🧹 Unsubscribing from order book: ${coin}`);
+        
+        const subscriptionKey = `${coin}_orderbook`;
+        
+        if (this.subscribers.has(subscriptionKey)) {
+            // Clear all callbacks for this order book
+            this.subscribers.delete(subscriptionKey);
+            console.log(`✅ Removed order book subscription for ${coin}`);
+            
+            // Send unsubscribe message to WebSocket
+            const unsubscribeMessage = {
+                method: 'unsubscribe',
+                subscription: {
+                    type: 'l2Book',
+                    coin: coin
+                }
+            };
+            
+            if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                console.log(`📤 Sending WebSocket order book unsubscribe:`, unsubscribeMessage);
+                this.ws.send(JSON.stringify(unsubscribeMessage));
+            }
+        } else {
+            console.log(`ℹ️  No active order book subscription found for ${coin}`);
         }
     }
 
