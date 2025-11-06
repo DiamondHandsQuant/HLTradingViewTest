@@ -6,7 +6,7 @@
 
 A sophisticated, production-ready trading interface that integrates TradingView Advanced Charts with multiple exchange APIs (HyperLiquid & Ostium) for real-time cryptocurrency and traditional asset trading data and analysis.
 
-**Last Updated: January 6, 2025**
+**Last Updated: November 6, 2025**
 
 > **⚠️ Important**: This project requires a TradingView Advanced Charts license. [Apply for access here](https://in.tradingview.com/advanced-charts/) before using this integration.
 
