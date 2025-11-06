@@ -4,7 +4,9 @@
 [![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
 [![TradingView](https://img.shields.io/badge/TradingView-Charting%20Library-blue.svg)](https://www.tradingview.com/charting-library/)
 
-A sophisticated, production-ready trading interface that integrates TradingView Advanced Charts with HyperLiquid's API for real-time cryptocurrency trading data and analysis.
+A sophisticated, production-ready trading interface that integrates TradingView Advanced Charts with multiple exchange APIs (HyperLiquid & Ostium) for real-time cryptocurrency and traditional asset trading data and analysis.
+
+**Last Updated: January 6, 2025**
 
 > **⚠️ Important**: This project requires a TradingView Advanced Charts license. [Apply for access here](https://in.tradingview.com/advanced-charts/) before using this integration.
 
@@ -25,10 +27,12 @@ Visit the live demo: [HLTradingViewTest](https://github.com/DiamondHandsQuant/HL
 - **Technical Indicators**: Built-in indicators and studies
 - **Professional UI**: Dark theme interface matching modern trading platforms
 
-### 🔗 Real-time Data Integration
-- **HyperLiquid API Integration**: Real-time market data and historical candle data
-- **WebSocket Real-time Updates**: Live price updates and candle streaming
-- **Order Book Integration**: Real-time bid/ask levels with market depth visualization
+### 🔗 Multi-Exchange Data Integration
+- **HyperLiquid API Integration**: Real-time cryptocurrency market data and historical candle data
+- **Ostium API Integration**: Traditional assets (forex, indices, commodities) with real-time SSE streaming
+- **WebSocket Real-time Updates**: Live price updates and candle streaming for crypto assets
+- **Server-Sent Events (SSE)**: Real-time price feeds for traditional financial instruments
+- **Order Book Integration**: Real-time bid/ask levels with market depth visualization (HyperLiquid)
 - **Auto-reconnection**: Robust connection management with automatic reconnection
 - **Data Caching**: Optimized performance with intelligent data caching
 
@@ -108,6 +112,7 @@ TvAdvancedDemoHL/
 ├── ⚙️ app.js                  # Main application logic and initialization
 ├── 📊 datafeed.js            # TradingView datafeed implementation
 ├── 🔗 hyperliquid-api.js     # HyperLiquid API integration and WebSocket
+├── 🏛️ ostium-api.js           # Ostium API integration and SSE streaming
 ├── 📦 package.json           # Project dependencies and scripts
 ├── 📋 README.md              # Project documentation
 ├── 📜 LICENSE                # MIT License file
@@ -120,32 +125,43 @@ TvAdvancedDemoHL/
 
 - **`index.html`**: Entry point with TradingView widget container and order book UI
 - **`app.js`**: Main application class managing chart initialization and UI interactions
-- **`datafeed.js`**: Implements TradingView's datafeed interface for HyperLiquid integration
+- **`datafeed.js`**: Implements TradingView's datafeed interface for multi-exchange integration
 - **`hyperliquid-api.js`**: Handles REST API calls and WebSocket connections to HyperLiquid
+- **`ostium-api.js`**: Handles REST API calls and SSE streaming connections to Ostium
 - **`styles.css`**: Custom styling for dark theme, responsive design, and order book
 - **`charting_library/`**: TradingView Charting Library with custom configurations
 
 ## API Integration
 
-### HyperLiquid REST API
+### HyperLiquid Integration
 
-The application uses HyperLiquid's REST API endpoints:
+The application uses HyperLiquid's REST API endpoints for cryptocurrency data:
 
 - **Candle Data**: `POST /info` with `type: "candleSnapshot"`
 - **Market Data**: `POST /info` with `type: "allMids"`
 - **Metadata**: `POST /info` with `type: "meta"`
 
-### WebSocket Integration
-
-Real-time data is streamed via WebSocket connection:
-
+**WebSocket Integration** for real-time crypto data:
 - **URL**: `wss://api.hyperliquid.xyz/ws`
 - **Candle Subscription**: `{"method": "subscribe", "subscription": {"type": "candle", "coin": "BTC", "interval": "1m"}}`
 - **Order Book Subscription**: `{"method": "subscribe", "subscription": {"type": "l2Book", "coin": "BTC"}}`
 
-### Order Book Integration
+### Ostium Integration
 
-The integrated order book provides real-time market depth visualization:
+The application integrates with Ostium's API for traditional financial assets:
+
+- **Historical Data**: `POST /ohlc/getHistorical` for OHLC candle data
+- **Asset Support**: Forex pairs (EURUSD, GBPUSD), indices (SPX, NDX), commodities, and crypto
+- **Authentication**: Basic Auth with API key and secret
+
+**Server-Sent Events (SSE)** for real-time traditional asset prices:
+- **URL**: `https://metadata-backend.ostium.io/price-updates/all-feeds-auth`
+- **Real-time Updates**: Live price feeds for EUR, GBP, SPX, NDX, BTC, ETH and more
+- **Authentication**: Basic Auth header required for SSE connection
+
+### Order Book Integration (HyperLiquid)
+
+The integrated order book provides real-time market depth visualization for cryptocurrency pairs:
 
 - **Real-time Updates**: Live bid/ask levels with size information
 - **Market Depth**: Visual representation of order book liquidity
@@ -156,12 +172,12 @@ The integrated order book provides real-time market depth visualization:
 ## Supported Features
 
 ### Chart Features
-- Candlestick charts with OHLCV data
-- Multiple timeframes (1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w)
-- Real-time price updates via WebSocket
-- Volume indicators and market depth
-- Integrated order book with bid/ask levels
-- Professional dark theme matching HyperLiquid's interface
+- **Multi-Asset Support**: Cryptocurrency (HyperLiquid) and traditional assets (Ostium)
+- **Candlestick Charts**: OHLCV data with volume indicators
+- **Multiple Timeframes**: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 8h, 12h, 1d, 3d, 1w
+- **Real-time Updates**: WebSocket (crypto) and SSE (traditional assets) streaming
+- **Market Depth**: Integrated order book with bid/ask levels (HyperLiquid only)
+- **Professional UI**: Dark theme matching modern trading platforms
 
 ### Drawing Tools
 - Trend lines
@@ -173,34 +189,39 @@ The integrated order book provides real-time market depth visualization:
 - Measurement tools
 
 ### UI Controls
-- Symbol switching between cryptocurrency pairs
-- Timeframe selection with multiple intervals
-- Fullscreen mode for immersive trading
-- Auto-scale and log-scale options
-- Technical indicators and studies
-- Order book toggle and market depth view
-- Chart settings and customization
+- **Multi-Exchange Symbol Switching**: Cryptocurrency pairs (HyperLiquid) and traditional assets (Ostium)
+- **Timeframe Selection**: Multiple intervals with native TradingView controls
+- **Fullscreen Mode**: Immersive trading experience
+- **Chart Controls**: Auto-scale, log-scale, and zoom options
+- **Technical Analysis**: Built-in indicators and studies
+- **Order Book View**: Real-time market depth (HyperLiquid crypto pairs)
+- **Customization**: Chart settings and theme preferences
 
 ## Technical Implementation
 
 ### TradingView Datafeed
 
-The `HyperLiquidDatafeed` class implements the TradingView Charting Library datafeed interface:
+The multi-exchange datafeed implements the TradingView Charting Library interface:
 
-- `onReady()`: Provides chart configuration
-- `resolveSymbol()`: Resolves symbol information
-- `getBars()`: Fetches historical data
-- `subscribeBars()`: Subscribes to real-time updates
-- `unsubscribeBars()`: Unsubscribes from updates
+- **`onReady()`**: Provides chart configuration and supported features
+- **`resolveSymbol()`**: Resolves symbol information for both exchanges
+- **`getBars()`**: Fetches historical data from appropriate exchange
+- **`subscribeBars()`**: Subscribes to real-time updates (WebSocket/SSE)
+- **`unsubscribeBars()`**: Unsubscribes from updates
 
-### API Client
+### API Clients
 
-The `HyperLiquidAPI` class handles:
-
-- REST API requests for historical data
-- WebSocket connections for real-time data
+**`HyperLiquidAPI` class** handles cryptocurrency data:
+- REST API requests for historical crypto data
+- WebSocket connections for real-time price and order book updates
 - Data formatting and error handling
 - Connection management and reconnection logic
+
+**`OstiumAPI` class** handles traditional asset data:
+- REST API requests for historical OHLC data
+- Server-Sent Events (SSE) for real-time price streaming
+- Basic authentication with API credentials
+- Rate limiting and connection management
 
 ### Application Logic
 
@@ -222,11 +243,18 @@ The application uses a dark theme that can be customized in:
 
 ### API Configuration
 
-HyperLiquid API settings can be modified in `hyperliquid-api.js`:
+**HyperLiquid** settings can be modified in `hyperliquid-api.js`:
 
 ```javascript
 this.baseURL = 'https://api.hyperliquid.xyz';
 this.wsURL = 'wss://api.hyperliquid.xyz/ws';
+```
+
+**Ostium** settings can be modified in `ostium-api.js`:
+
+```javascript
+this.baseURL = 'https://history.ostium.io';
+this.sseURL = 'https://metadata-backend.ostium.io/price-updates/all-feeds-auth';
 ```
 
 ### Chart Configuration
@@ -396,8 +424,9 @@ window.tradingViewApp.api.testConnection();
 
 ### API Documentation
 - [HyperLiquid API Documentation](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api)
+- [HyperLiquid WebSocket API](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/websocket)
+- [Ostium API Documentation](https://ostium.io/docs/api)
 - [TradingView Charting Library Docs](https://github.com/tradingview/charting_library)
-- [WebSocket API Reference](https://hyperliquid.gitbook.io/hyperliquid-docs/for-developers/api/websocket)
 
 ### Learning Resources
 - [TradingView Charting Library Tutorial](https://github.com/tradingview/charting_library/wiki)
@@ -411,6 +440,11 @@ window.tradingViewApp.api.testConnection();
 
 ---
 
-**Made with ❤️ for the crypto trading community by [psyb0rg.eth](https://x.com/psyb0rg_)**
+## 👥 Authors
+
+**Made with ❤️ for the trading community by:**
+
+- **[psyb0rg.eth](https://x.com/psyb0rg_)** - HyperLiquid integration and project architecture
+- **[@saushank_](https://x.com/saushank_)** - Ostium integration and multi-exchange support
 
 *If you find this project helpful, please consider giving it a ⭐ on [GitHub](https://github.com/DiamondHandsQuant/HLTradingViewTest)!*
