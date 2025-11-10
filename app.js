@@ -8,6 +8,7 @@ class TradingViewApp {
         this.widget = null;
         this.datafeed = null;
         this.currentSymbol = 'BTC';
+        this.currentExchange = null; // Track current exchange
         this.currentInterval = '1h';
         this.isInitialized = false;
         this.priceUpdateInterval = null;
@@ -188,8 +189,9 @@ class TradingViewApp {
                     console.log('TradingView chart is ready');
                     this.setupChartEventListeners();
                     
-                    // Set initial order book visibility
+                    // Set initial exchange and order book visibility
                     const initialExchange = this.datafeed.getExchangeForSymbol(symbolToUse);
+                    this.currentExchange = initialExchange;
                     this.updateOrderBookVisibility(initialExchange);
                     
                     resolve();
@@ -212,7 +214,7 @@ class TradingViewApp {
             // Listen for symbol changes
             this.widget.subscribe('onSymbolChanged', (symbolInfo) => {
                 console.log('🔄 SYMBOL CHANGED EVENT FIRED');
-                console.log('   Symbol Info:', symbolInfo);
+                console.log('   Full symbolInfo object:', JSON.stringify(symbolInfo, null, 2));
                 
                 if (symbolInfo && symbolInfo.name) {
                     // Extract clean symbol name
@@ -223,24 +225,40 @@ class TradingViewApp {
                         newSymbol = newSymbol.replace(/USD$/, '');
                     }
                     
-                    console.log(`   Old symbol: ${this.currentSymbol}`);
-                    console.log(`   New symbol: ${newSymbol}`);
+                    // IMPORTANT: Use symbolInfo.exchange to get the correct exchange
+                    // TradingView strips the prefix from symbolInfo.name, so we can't detect from the name
+                    const newExchange = symbolInfo.exchange || this.datafeed.getExchangeForSymbol(newSymbol);
                     
-                    // CRITICAL: Clean up old subscriptions IMMEDIATELY
-                    if (this.currentSymbol !== newSymbol) {
-                        console.log(`   ⚠️  Symbol actually changed, cleaning up old subscriptions`);
+                    console.log(`   📊 OLD STATE:`);
+                    console.log(`      Symbol: ${this.currentSymbol}`);
+                    console.log(`      Exchange: ${this.currentExchange}`);
+                    console.log(`   📊 NEW STATE:`);
+                    console.log(`      Symbol: ${newSymbol}`);
+                    console.log(`      Exchange: ${newExchange}`);
+                    console.log(`      symbolInfo.exchange: ${symbolInfo.exchange}`);
+                    console.log(`      symbolInfo.full_name: ${symbolInfo.full_name}`);
+                    
+                    // Check if symbol OR exchange has changed
+                    const symbolChanged = this.currentSymbol !== newSymbol;
+                    const exchangeChanged = this.currentExchange !== newExchange;
+                    
+                    if (symbolChanged || exchangeChanged) {
+                        console.log(`   ⚠️  CHANGE DETECTED:`);
+                        console.log(`      Symbol changed: ${symbolChanged} (${this.currentSymbol} -> ${newSymbol})`);
+                        console.log(`      Exchange changed: ${exchangeChanged} (${this.currentExchange} -> ${newExchange})`);
+                        console.log(`   🔄 Triggering order book update for exchange: ${newExchange}`);
                         
-                        // Update order book visibility based on exchange
-                        const exchange = this.datafeed.getExchangeForSymbol(newSymbol);
-                        console.log(`   New exchange: ${exchange}`);
-                        
-                        this.updateOrderBookVisibility(exchange);
+                        // Update order book visibility and subscriptions
+                        this.updateOrderBookVisibility(newExchange);
+                    } else {
+                        console.log(`   ℹ️  No change detected, skipping order book update`);
                     }
-                    
+
                     this.currentSymbol = newSymbol;
+                    this.currentExchange = newExchange;
                     this.updateSymbolDisplay();
                     
-                    console.log(`✅ Symbol change complete: ${newSymbol}`);
+                    console.log(`✅ Symbol change complete: ${newSymbol} (${newExchange})`);
                 }
             });
 
@@ -394,7 +412,7 @@ class TradingViewApp {
 
     /**
      * Update order book visibility based on exchange
-     * Ostium doesn't have order book data
+     * Ostium doesn't have order book data, HyperLiquid and Lighter do
      */
     updateOrderBookVisibility(exchange) {
         const orderBookContainer = document.querySelector('.orderbook-container');
@@ -405,13 +423,13 @@ class TradingViewApp {
                 orderBookContainer.style.display = 'none';
                 console.log('ℹ️  Order book hidden (not available for Ostium)');
                 
-                // IMPORTANT: Clean up HyperLiquid subscriptions
+                // IMPORTANT: Clean up subscriptions
                 this.cleanupOrderBook();
                 
-            } else {
-                // Show order book for HyperLiquid symbols
+            } else if (exchange === 'HYPERLIQUID' || exchange === 'LIGHTER') {
+                // Show order book for HyperLiquid and Lighter symbols
                 orderBookContainer.style.display = 'flex';
-                console.log('✅ Order book visible (HyperLiquid)');
+                console.log(`✅ Order book visible (${exchange})`);
                 
                 // Clean up old subscription first
                 this.cleanupOrderBook();
@@ -436,13 +454,16 @@ class TradingViewApp {
             
             // Unsubscribe from order book if API supports it
             if (api && api.unsubscribeFromOrderBook) {
-                api.unsubscribeFromOrderBook(this.activeOrderBookSubscription.symbol);
+                // Use the subscription key (market ID for Lighter, symbol for HyperLiquid)
+                const keyToUnsubscribe = this.activeOrderBookSubscription.subscriptionKey || this.activeOrderBookSubscription.symbol;
+                console.log(`   Unsubscribing with key: ${keyToUnsubscribe}`);
+                api.unsubscribeFromOrderBook(keyToUnsubscribe);
                 console.log('✅ Unsubscribe message sent');
             }
             
             // AGGRESSIVE: Also disconnect WebSocket to force stop all subscriptions
             if (api && api.disconnectWebSocket) {
-                console.log('⚠️  Force disconnecting WebSocket to stop all HyperLiquid subscriptions');
+                console.log('⚠️  Force disconnecting WebSocket to stop all subscriptions');
                 api.disconnectWebSocket();
             }
             
@@ -518,6 +539,16 @@ class TradingViewApp {
     }
 
     /**
+     * Strip exchange prefix from symbol (e.g., "LIGHTER:BTC" -> "BTC")
+     */
+    stripExchangePrefix(symbol) {
+        if (symbol.includes(':')) {
+            return symbol.split(':')[1];
+        }
+        return symbol;
+    }
+
+    /**
      * Initialize order book
      */
     async initOrderBook() {
@@ -526,20 +557,58 @@ class TradingViewApp {
         try {
             // Get the appropriate API for the current symbol
             const api = this.datafeed.getAPIForSymbol(this.currentSymbol);
+            const exchange = this.datafeed.getExchangeForSymbol(this.currentSymbol);
             
-            // Only HyperLiquid supports order book currently
+            console.log(`   Exchange detected: ${exchange}`);
+            console.log(`   API found: ${api ? 'Yes' : 'No'}`);
+            
+            // Check if we're already subscribed to this symbol on this exchange
+            if (this.activeOrderBookSubscription && 
+                this.activeOrderBookSubscription.symbol === this.currentSymbol &&
+                this.activeOrderBookSubscription.exchange === exchange) {
+                console.log(`ℹ️  Already subscribed to ${this.currentSymbol} on ${exchange}, skipping`);
+                return;
+            }
+            
+            // HyperLiquid and Lighter support order books
             if (api && api.subscribeToOrderBook) {
-                await api.subscribeToOrderBook(this.currentSymbol, (orderBook) => {
+                // For Lighter, use market ID; for HyperLiquid, use symbol name
+                let subscriptionKey = this.currentSymbol;
+                
+                if (exchange === 'LIGHTER') {
+                    // Strip exchange prefix before looking up market ID
+                    const cleanSymbol = this.stripExchangePrefix(this.currentSymbol);
+                    console.log(`   Clean symbol for Lighter lookup: ${cleanSymbol}`);
+                    
+                    // Get market ID from the Lighter API
+                    const marketId = api.getMarketIdForSymbol(cleanSymbol);
+                    if (marketId !== null) {
+                        subscriptionKey = marketId;
+                        console.log(`   Using Lighter market ID: ${subscriptionKey}`);
+                    } else {
+                        console.error(`   ❌ Could not find market ID for symbol: ${cleanSymbol}`);
+                        return; // Don't subscribe if we can't find the market ID
+                    }
+                } else {
+                    // For HyperLiquid, also strip prefix
+                    subscriptionKey = this.stripExchangePrefix(this.currentSymbol);
+                    console.log(`   Using symbol name: ${subscriptionKey}`);
+                }
+                
+                console.log(`   📤 Subscribing to order book with key: ${subscriptionKey}`);
+                await api.subscribeToOrderBook(subscriptionKey, (orderBook) => {
                     this.updateOrderBook(orderBook);
                 });
                 
                 // Track the active subscription
                 this.activeOrderBookSubscription = {
                     symbol: this.currentSymbol,
-                    api: api
+                    exchange: exchange,
+                    api: api,
+                    subscriptionKey: subscriptionKey
                 };
                 
-                console.log('✅ Order book subscription successful for', this.currentSymbol);
+                console.log('✅ Order book subscription successful for', this.currentSymbol, 'on', exchange);
             } else {
                 console.log('ℹ️  Order book not available for', this.currentSymbol);
             }

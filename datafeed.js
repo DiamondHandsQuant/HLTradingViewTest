@@ -86,18 +86,28 @@ class HyperLiquidDatafeed {
         
         for (const [symbol, symbolInfo] of this.symbols) {
             if (symbol.includes(searchTerm)) {
-                results.push({
-                    symbol: symbolInfo.name,
-                    full_name: symbolInfo.full_name,
-                    description: symbolInfo.description,
-                    exchange: symbolInfo.exchange,
-                    type: symbolInfo.type
-                });
+				results.push(this.buildSearchResult(symbolInfo));
             }
         }
         
         onResultReadyCallback(results);
     }
+
+	/**
+	 * Build a TradingView search result ensuring unique, prefixed symbols
+	 * TradingView may use the `symbol` field to resolve, so make it prefixed.
+	 */
+	buildSearchResult(symbolInfo) {
+		const prefixed = symbolInfo.full_name; // e.g., HYPERLIQUID:BTCUSD
+		return {
+			symbol: prefixed,
+			full_name: prefixed,
+			description: symbolInfo.description,
+			exchange: symbolInfo.exchange,
+			type: symbolInfo.type,
+			ticker: prefixed
+		};
+	}
 
     /**
      * TradingView datafeed method: resolveSymbol

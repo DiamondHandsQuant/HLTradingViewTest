@@ -1,17 +1,22 @@
 /**
  * Unified TradingView Datafeed
- * Combines HyperLiquid (crypto) and Ostium (RWA) into a single seamless datafeed
+ * Combines HyperLiquid, Ostium, and Lighter into a single seamless datafeed
  * Users can search and switch between any symbol without manual exchange switching
  */
 
 class UnifiedDatafeed {
     constructor(ostiumApiKey, ostiumApiSecret, ostiumApiURL = null, ostiumSSEURL = null) {
-        // Initialize both datafeeds
+        // Initialize all three datafeeds
         this.hyperLiquidDatafeed = new HyperLiquidDatafeed();
         this.ostiumDatafeed = new OstiumDatafeed(ostiumApiKey, ostiumApiSecret, ostiumApiURL, ostiumSSEURL);
+        this.lighterDatafeed = new LighterDatafeed();
         
         // Symbol registry: maps symbol name to its exchange
         this.symbolExchangeMap = new Map();
+        
+        // Track which exchange was used during resolveSymbol
+        // Maps: symbolInfo object -> exchange name
+        this.resolvedSymbolExchange = new Map();
         
         // RWA symbols that use Ostium
         this.rwaSymbols = ['SPX', 'EURUSD'];
@@ -26,16 +31,17 @@ class UnifiedDatafeed {
     }
 
     /**
-     * Initialize both datafeeds
+     * Initialize all three datafeeds
      */
     async initialize() {
         try {
             console.log('🔄 Initializing Unified Datafeed...');
             
-            // Initialize both datafeeds in parallel
+            // Initialize all three datafeeds in parallel
             await Promise.all([
                 this.hyperLiquidDatafeed.initialize(),
-                this.ostiumDatafeed.initialize()
+                this.ostiumDatafeed.initialize(),
+                this.lighterDatafeed.initialize()
             ]);
             
             // Build symbol exchange map
@@ -49,6 +55,9 @@ class UnifiedDatafeed {
                     .map(([sym, _]) => sym),
                 ostium: Array.from(this.symbolExchangeMap.entries())
                     .filter(([_, ex]) => ex === 'OSTIUM')
+                    .map(([sym, _]) => sym),
+                lighter: Array.from(this.symbolExchangeMap.entries())
+                    .filter(([_, ex]) => ex === 'LIGHTER')
                     .map(([sym, _]) => sym)
             });
             
@@ -62,24 +71,53 @@ class UnifiedDatafeed {
      * Build map of symbols to their exchanges
      */
     buildSymbolMap() {
-        // Add HyperLiquid symbols
+        // Collect all symbols first to detect conflicts
+        const symbolSources = new Map(); // symbol -> array of exchanges
+        
+        // Collect HyperLiquid symbols
         for (const [symbol, _] of this.hyperLiquidDatafeed.symbols) {
-            this.symbolExchangeMap.set(symbol, 'HYPERLIQUID');
-            this.symbolExchangeMap.set(`${symbol}USD`, 'HYPERLIQUID');
-            this.symbolExchangeMap.set(`HYPERLIQUID:${symbol}USD`, 'HYPERLIQUID');
+            if (!symbolSources.has(symbol)) symbolSources.set(symbol, []);
+            symbolSources.get(symbol).push('HYPERLIQUID');
         }
         
-        // Add Ostium symbols
+        // Collect Ostium symbols
         for (const [symbol, _] of this.ostiumDatafeed.symbols) {
-            this.symbolExchangeMap.set(symbol, 'OSTIUM');
-            // Handle forex pairs differently (no USD suffix)
-            if (symbol.includes('USD') || symbol.includes('EUR') || symbol.includes('GBP')) {
-                this.symbolExchangeMap.set(`OSTIUM:${symbol}`, 'OSTIUM');
-            } else {
-                this.symbolExchangeMap.set(`${symbol}USD`, 'OSTIUM');
-                this.symbolExchangeMap.set(`OSTIUM:${symbol}`, 'OSTIUM');
+            if (!symbolSources.has(symbol)) symbolSources.set(symbol, []);
+            symbolSources.get(symbol).push('OSTIUM');
+        }
+        
+        // Collect Lighter symbols
+        for (const [symbol, _] of this.lighterDatafeed.symbols) {
+            if (!symbolSources.has(symbol)) symbolSources.set(symbol, []);
+            symbolSources.get(symbol).push('LIGHTER');
+        }
+        
+        // Now register symbols
+        // For unique symbols: register without prefix
+        // For conflicting symbols: ONLY register with exchange prefix
+        
+        for (const [symbol, exchanges] of symbolSources) {
+            if (exchanges.length === 1) {
+                // Unique symbol - register without prefix
+                const exchange = exchanges[0];
+                this.symbolExchangeMap.set(symbol, exchange);
+                this.symbolExchangeMap.set(`${symbol}USD`, exchange);
+            }
+            // For conflicting symbols, don't register unprefixed version
+            // They MUST use exchange prefix
+            
+            // Always register WITH exchange prefix
+            for (const exchange of exchanges) {
+                this.symbolExchangeMap.set(`${exchange}:${symbol}`, exchange);
+                this.symbolExchangeMap.set(`${exchange}:${symbol}USD`, exchange);
             }
         }
+        
+        console.log('📋 Symbol conflicts detected:', 
+            Array.from(symbolSources.entries())
+                .filter(([_, exs]) => exs.length > 1)
+                .map(([sym, exs]) => `${sym} (${exs.join(', ')})`)
+        );
     }
 
     /**
@@ -92,7 +130,7 @@ class UnifiedDatafeed {
         // Remove exchange prefix
         if (cleanSymbol.includes(':')) {
             const parts = cleanSymbol.split(':');
-            if (parts[0] === 'HYPERLIQUID' || parts[0] === 'OSTIUM') {
+            if (parts[0] === 'HYPERLIQUID' || parts[0] === 'OSTIUM' || parts[0] === 'LIGHTER') {
                 return parts[0];
             }
             cleanSymbol = parts[1];
@@ -124,7 +162,13 @@ class UnifiedDatafeed {
      */
     getDatafeedForSymbol(symbolName) {
         const exchange = this.getExchangeForSymbol(symbolName);
-        return exchange === 'OSTIUM' ? this.ostiumDatafeed : this.hyperLiquidDatafeed;
+        if (exchange === 'OSTIUM') {
+            return this.ostiumDatafeed;
+        } else if (exchange === 'LIGHTER') {
+            return this.lighterDatafeed;
+        } else {
+            return this.hyperLiquidDatafeed;
+        }
     }
 
     /**
@@ -133,15 +177,17 @@ class UnifiedDatafeed {
     onReady(callback) {
         console.log('📡 Unified Datafeed onReady called');
         
-        // Merge configurations from both datafeeds
+        // Merge configurations from all three datafeeds
         const hyperLiquidConfig = this.hyperLiquidDatafeed.config;
         const ostiumConfig = this.ostiumDatafeed.config;
+        const lighterConfig = this.lighterDatafeed.config;
         
         const unifiedConfig = {
             supported_resolutions: hyperLiquidConfig.supported_resolutions,
             exchanges: [
                 ...hyperLiquidConfig.exchanges,
-                ...ostiumConfig.exchanges
+                ...ostiumConfig.exchanges,
+                ...lighterConfig.exchanges
             ],
             symbols_types: [
                 { name: 'crypto', value: 'crypto' },
@@ -160,7 +206,7 @@ class UnifiedDatafeed {
 
     /**
      * TradingView datafeed method: searchSymbols
-     * Search across BOTH exchanges
+     * Search across ALL THREE exchanges
      */
     searchSymbols(userInput, exchange, symbolType, onResultReadyCallback) {
         console.log('🔍 Unified search for:', userInput);
@@ -177,7 +223,16 @@ class UnifiedDatafeed {
             allResults.push(...ostiumResults);
         });
         
-        console.log(`✅ Found ${allResults.length} symbols across both exchanges:`, allResults);
+        // Search Lighter symbols
+        this.lighterDatafeed.searchSymbols(userInput, '', '', (lighterResults) => {
+            allResults.push(...lighterResults);
+        });
+        
+        console.log(`✅ Found ${allResults.length} symbols across all three exchanges:`);
+        allResults.forEach(result => {
+            console.log(`   📍 ${result.full_name} | ${result.description} | Exchange: ${result.exchange}`);
+        });
+        
         onResultReadyCallback(allResults);
     }
 
@@ -193,9 +248,17 @@ class UnifiedDatafeed {
         const datafeed = this.getDatafeedForSymbol(symbolName);
         
         console.log(`   Detected Exchange: ${exchange}`);
-        console.log(`   Routing to: ${exchange === 'OSTIUM' ? 'OstiumDatafeed' : 'HyperLiquidDatafeed'}`);
+        console.log(`   Routing to: ${datafeed === this.ostiumDatafeed ? 'OstiumDatafeed' : datafeed === this.lighterDatafeed ? 'LighterDatafeed' : 'HyperLiquidDatafeed'}`);
         
-        datafeed.resolveSymbol(symbolName, onSymbolResolvedCallback, onResolveErrorCallback);
+        // Wrap the callback to store the exchange mapping
+        const wrappedCallback = (symbolInfo) => {
+            // Store which exchange this symbolInfo belongs to
+            this.resolvedSymbolExchange.set(symbolInfo, exchange);
+            console.log(`   ✅ Stored exchange mapping: ${symbolInfo.name} -> ${exchange}`);
+            onSymbolResolvedCallback(symbolInfo);
+        };
+        
+        datafeed.resolveSymbol(symbolName, wrappedCallback, onResolveErrorCallback);
     }
 
     /**
@@ -203,23 +266,36 @@ class UnifiedDatafeed {
      * Route to appropriate exchange
      */
     async getBars(symbolInfo, resolution, periodParams, onHistoryCallback, onErrorCallback) {
-        const exchange = this.getExchangeForSymbol(symbolInfo.name);
-        const datafeed = this.getDatafeedForSymbol(symbolInfo.name);
+        // Use the exchange that was determined during resolveSymbol
+        const exchange = this.resolvedSymbolExchange.get(symbolInfo) || this.getExchangeForSymbol(symbolInfo.name);
+        
+        // Get the appropriate datafeed
+        let datafeed;
+        if (exchange === 'HYPERLIQUID') {
+            datafeed = this.hyperLiquidDatafeed;
+        } else if (exchange === 'OSTIUM') {
+            datafeed = this.ostiumDatafeed;
+        } else if (exchange === 'LIGHTER') {
+            datafeed = this.lighterDatafeed;
+        } else {
+            datafeed = this.hyperLiquidDatafeed; // fallback
+        }
         
         console.log(`🔵 UNIFIED DATAFEED - getBars called`);
         console.log(`   Symbol: ${symbolInfo.name}`);
-        console.log(`   Detected Exchange: ${exchange}`);
-        console.log(`   Routing to: ${exchange === 'OSTIUM' ? 'OstiumDatafeed' : 'HyperLiquidDatafeed'}`);
+        console.log(`   Exchange (from resolveSymbol): ${exchange}`);
+        console.log(`   Routing to: ${exchange === 'OSTIUM' ? 'OstiumDatafeed' : exchange === 'LIGHTER' ? 'LighterDatafeed' : 'HyperLiquidDatafeed'}`);
         
         // CRITICAL: Detect symbol changes and notify app to cleanup order books
         if (!this.lastRequestedSymbol || this.lastRequestedSymbol !== symbolInfo.name) {
             console.log(`   ⚠️  Symbol changed from ${this.lastRequestedSymbol} to ${symbolInfo.name}`);
             console.log(`   → Triggering order book cleanup via window event`);
+            console.log(`   → Using exchange from resolveSymbol: ${exchange}`);
             
             // Trigger cleanup via global event
+            // Use the exchange that was already determined from resolveSymbol, not a new lookup
             if (window.tradingViewApp) {
-                const newExchange = this.getExchangeForSymbol(symbolInfo.name);
-                window.tradingViewApp.updateOrderBookVisibility(newExchange);
+                window.tradingViewApp.updateOrderBookVisibility(exchange);
             }
             
             this.lastRequestedSymbol = symbolInfo.name;
@@ -233,12 +309,24 @@ class UnifiedDatafeed {
      * Route to appropriate exchange
      */
     subscribeBars(symbolInfo, resolution, onRealtimeCallback, subscriberUID, onResetCacheNeededCallback) {
-        const exchange = this.getExchangeForSymbol(symbolInfo.name);
-        const datafeed = this.getDatafeedForSymbol(symbolInfo.name);
+        // Use the exchange that was determined during resolveSymbol
+        const exchange = this.resolvedSymbolExchange.get(symbolInfo) || this.getExchangeForSymbol(symbolInfo.name);
+        
+        // Get the appropriate datafeed
+        let datafeed;
+        if (exchange === 'HYPERLIQUID') {
+            datafeed = this.hyperLiquidDatafeed;
+        } else if (exchange === 'OSTIUM') {
+            datafeed = this.ostiumDatafeed;
+        } else if (exchange === 'LIGHTER') {
+            datafeed = this.lighterDatafeed;
+        } else {
+            datafeed = this.hyperLiquidDatafeed; // fallback
+        }
         
         console.log(`🔔 UNIFIED DATAFEED - subscribeBars called`);
         console.log(`   Symbol: ${symbolInfo.name}`);
-        console.log(`   Exchange: ${exchange}`);
+        console.log(`   Exchange (from resolveSymbol): ${exchange}`);
         console.log(`   SubscriberUID: ${subscriberUID}`);
         console.log(`   Resolution: ${resolution}`);
         
@@ -304,6 +392,8 @@ class UnifiedDatafeed {
         
         if (exchange === 'OSTIUM') {
             return this.ostiumDatafeed.api;
+        } else if (exchange === 'LIGHTER') {
+            return this.lighterDatafeed.api;
         } else {
             return this.hyperLiquidDatafeed.api;
         }
@@ -315,13 +405,17 @@ class UnifiedDatafeed {
     destroy() {
         console.log('🧹 Destroying Unified Datafeed');
         
-        // Destroy both datafeeds
+        // Destroy all three datafeeds
         if (this.hyperLiquidDatafeed && this.hyperLiquidDatafeed.destroy) {
             this.hyperLiquidDatafeed.destroy();
         }
         
         if (this.ostiumDatafeed && this.ostiumDatafeed.destroy) {
             this.ostiumDatafeed.destroy();
+        }
+        
+        if (this.lighterDatafeed && this.lighterDatafeed.destroy) {
+            this.lighterDatafeed.destroy();
         }
         
         this.activeSubscriptions.clear();

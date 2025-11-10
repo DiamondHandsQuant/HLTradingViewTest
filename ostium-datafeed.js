@@ -79,16 +79,7 @@ class OstiumDatafeed {
             });
             
             console.log('✅ Ostium datafeed initialized with', this.symbols.size, 'RWA symbols:', Array.from(this.symbols.keys()));
-            
-            // Try to connect to SSE for real-time updates (non-blocking)
-            // SSE is optional - historical data works without it
-            console.log('🔌 Attempting to connect to Ostium SSE for real-time updates...');
-            this.api.connectSSE().then(() => {
-                console.log('✅ SSE connection initiated successfully');
-            }).catch(error => {
-                console.warn('⚠️  Ostium SSE connection failed (real-time updates disabled):', error.message);
-                console.log('ℹ️  Historical chart data will still work via REST API');
-            });
+            console.log('ℹ️  SSE will connect only when an Ostium symbol is selected');
             
         } catch (error) {
             console.error('❌ Failed to initialize Ostium datafeed:', error);
@@ -118,18 +109,28 @@ class OstiumDatafeed {
         
         for (const [symbol, symbolInfo] of this.symbols) {
             if (symbol.includes(searchTerm)) {
-                results.push({
-                    symbol: symbolInfo.name,
-                    full_name: symbolInfo.full_name,
-                    description: symbolInfo.description,
-                    exchange: symbolInfo.exchange,
-                    type: symbolInfo.type
-                });
+				results.push(this.buildSearchResult(symbolInfo));
             }
         }
         
         onResultReadyCallback(results);
     }
+
+	/**
+	 * Build a TradingView search result ensuring unique, prefixed symbols
+	 * TradingView may use the `symbol` field to resolve, so make it prefixed.
+	 */
+	buildSearchResult(symbolInfo) {
+		const prefixed = symbolInfo.full_name; // e.g., OSTIUM:SPX
+		return {
+			symbol: prefixed,
+			full_name: prefixed,
+			description: symbolInfo.description,
+			exchange: symbolInfo.exchange,
+			type: symbolInfo.type,
+			ticker: prefixed
+		};
+	}
 
     /**
      * TradingView datafeed method: resolveSymbol
@@ -243,6 +244,17 @@ class OstiumDatafeed {
         const symbol = symbolInfo.name;
         const key = `${symbol}_${resolution}`;
         
+        // Connect to SSE if this is the first Ostium subscription
+        if (this.subscribers.size === 0) {
+            console.log('🔌 First Ostium subscription - connecting SSE...');
+            this.api.connectSSE().then(() => {
+                console.log('✅ SSE connected for Ostium real-time updates');
+            }).catch(error => {
+                console.warn('⚠️  SSE connection failed (real-time updates disabled):', error.message);
+                console.log('ℹ️  Chart will still display historical data');
+            });
+        }
+        
         // Create subscription handler
         const handler = (data) => {
             try {
@@ -312,6 +324,12 @@ class OstiumDatafeed {
             // Remove from subscribers
             this.subscribers.delete(subscriberUID);
             console.log(`Unsubscribed from ${subscription.symbol}`);
+            
+            // Disconnect SSE if this was the last Ostium subscription
+            if (this.subscribers.size === 0) {
+                console.log('🔌 No more Ostium subscriptions - disconnecting SSE...');
+                this.api.disconnectSSE();
+            }
         }
     }
 

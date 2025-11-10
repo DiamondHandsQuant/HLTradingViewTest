@@ -16,6 +16,11 @@ const config = {
         // API credentials
         apiKey: 'PulseTrader01FX2EtClaGlu1FsXry0ZM42HzbXKv20sCn2JJ',
         apiSecret: 'mmprejrGVklxRjLZM4idXDoZk8J39vul8i6AnX9O5zMtY72U'
+    },
+    lighter: {
+        apiURL: 'https://mainnet.zklighter.elliot.ai/api/v1',
+        wsURL: 'wss://mainnet.zklighter.elliot.ai/stream'
+        // No credentials needed for public endpoints
     }
 };
 
