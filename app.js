@@ -13,6 +13,8 @@ class TradingViewApp {
         this.isInitialized = false;
         this.priceUpdateInterval = null;
         this.activeOrderBookSubscription = null; // Track active order book subscription
+        this.isTransitioning = false; // Flag to prevent stale updates during symbol change
+        this.orderBookSubscriptionId = 0; // Unique ID for each subscription to detect stale callbacks
         
         // Bind methods
         this.handleResize = this.handleResize.bind(this);
@@ -211,10 +213,19 @@ class TradingViewApp {
         if (!this.widget) return;
 
         try {
-            // Listen for symbol changes
-            this.widget.subscribe('onSymbolChanged', (symbolInfo) => {
+            console.log('📡 Setting up chart event listeners...');
+            
+            // Get the active chart and subscribe to symbol changes
+            const chart = this.widget.activeChart();
+            
+            // Listen for symbol changes using the correct TradingView API
+            chart.onSymbolChanged().subscribe(null, (symbolData) => {
                 console.log('🔄 SYMBOL CHANGED EVENT FIRED');
-                console.log('   Full symbolInfo object:', JSON.stringify(symbolInfo, null, 2));
+                console.log('   Full symbolData object:', JSON.stringify(symbolData, null, 2));
+                
+                // Get symbol info from the chart
+                const symbolInfo = chart.symbolExt();
+                console.log('   Symbol info from chart:', JSON.stringify(symbolInfo, null, 2));
                 
                 if (symbolInfo && symbolInfo.name) {
                     // Extract clean symbol name
@@ -246,16 +257,36 @@ class TradingViewApp {
                         console.log(`   ⚠️  CHANGE DETECTED:`);
                         console.log(`      Symbol changed: ${symbolChanged} (${this.currentSymbol} -> ${newSymbol})`);
                         console.log(`      Exchange changed: ${exchangeChanged} (${this.currentExchange} -> ${newExchange})`);
+                        console.log(`   🔄 Setting transition flag to prevent stale updates`);
+                        
+                        // CRITICAL: Set transition flag to block ALL order book updates during transition
+                        this.isTransitioning = true;
+                        
+                        console.log(`   🔄 Updating state before order book update`);
+                        
+                        // CRITICAL: Update state BEFORE calling updateOrderBookVisibility
+                        // This ensures initOrderBook() has the correct current symbol and exchange
+                        this.currentSymbol = newSymbol;
+                        this.currentExchange = newExchange;
+                        
                         console.log(`   🔄 Triggering order book update for exchange: ${newExchange}`);
                         
                         // Update order book visibility and subscriptions
                         this.updateOrderBookVisibility(newExchange);
+                        
+                        // Clear transition flag after a short delay to allow new subscription to be established
+                        setTimeout(() => {
+                            this.isTransitioning = false;
+                            console.log(`   ✅ Transition complete, accepting order book updates`);
+                        }, 100);
                     } else {
                         console.log(`   ℹ️  No change detected, skipping order book update`);
+                        
+                        // Still update the state even if no order book update is needed
+                        this.currentSymbol = newSymbol;
+                        this.currentExchange = newExchange;
                     }
 
-                    this.currentSymbol = newSymbol;
-                    this.currentExchange = newExchange;
                     this.updateSymbolDisplay();
                     
                     console.log(`✅ Symbol change complete: ${newSymbol} (${newExchange})`);
@@ -263,11 +294,13 @@ class TradingViewApp {
             });
 
             // Listen for interval changes
-            this.widget.subscribe('onIntervalChanged', (interval) => {
-                console.log('Interval changed:', interval);
+            chart.onIntervalChanged().subscribe(null, (interval, obj) => {
+                console.log('⏱️  INTERVAL CHANGED:', interval);
                 this.currentInterval = this.mapTradingViewInterval(interval);
                 this.updateIntervalDisplay();
             });
+            
+            console.log('✅ Chart event listeners setup complete');
 
         } catch (error) {
             console.error('Error setting up chart event listeners:', error);
@@ -446,28 +479,32 @@ class TradingViewApp {
      * Clean up active order book subscriptions
      */
     cleanupOrderBook() {
+        // CRITICAL: Increment subscription ID FIRST to immediately invalidate any in-flight callbacks
+        // This is the most important line - it makes all old callbacks stale immediately
+        this.orderBookSubscriptionId++;
+        console.log(`🔄 Incremented subscription ID to ${this.orderBookSubscriptionId} to invalidate old callbacks`);
+        
         if (this.activeOrderBookSubscription) {
-            console.log('🧹 Cleaning up order book subscription for', this.activeOrderBookSubscription.symbol);
+            console.log('🧹 Cleaning up order book subscription for', this.activeOrderBookSubscription.symbol, 'on', this.activeOrderBookSubscription.exchange);
             
-            // Get the API instance
-            const api = this.datafeed.getAPIForSymbol(this.activeOrderBookSubscription.symbol);
+            // IMPORTANT: Use the API that was stored in the subscription, not looking it up again
+            // This ensures we get the correct API instance for the exchange we subscribed to
+            const api = this.activeOrderBookSubscription.api;
             
             // Unsubscribe from order book if API supports it
             if (api && api.unsubscribeFromOrderBook) {
                 // Use the subscription key (market ID for Lighter, symbol for HyperLiquid)
                 const keyToUnsubscribe = this.activeOrderBookSubscription.subscriptionKey || this.activeOrderBookSubscription.symbol;
-                console.log(`   Unsubscribing with key: ${keyToUnsubscribe}`);
+                console.log(`   Unsubscribing with key: ${keyToUnsubscribe} from ${this.activeOrderBookSubscription.exchange}`);
                 api.unsubscribeFromOrderBook(keyToUnsubscribe);
                 console.log('✅ Unsubscribe message sent');
             }
             
-            // AGGRESSIVE: Also disconnect WebSocket to force stop all subscriptions
-            if (api && api.disconnectWebSocket) {
-                console.log('⚠️  Force disconnecting WebSocket to stop all subscriptions');
-                api.disconnectWebSocket();
-            }
-            
+            // Clear the subscription IMMEDIATELY to prevent race condition
+            // This prevents the callback from updating the UI after we've switched symbols
             this.activeOrderBookSubscription = null;
+            
+            console.log('✅ Order book subscription cleared');
         } else {
             console.log('ℹ️  No active order book subscription to clean up');
         }
@@ -555,9 +592,14 @@ class TradingViewApp {
         console.log('📚 Initializing order book for', this.currentSymbol);
         
         try {
-            // Get the appropriate API for the current symbol
-            const api = this.datafeed.getAPIForSymbol(this.currentSymbol);
-            const exchange = this.datafeed.getExchangeForSymbol(this.currentSymbol);
+            // Use the current exchange that was set by the symbol change event
+            // This is important because some symbols exist on multiple exchanges (e.g. SOL on both HYPERLIQUID and LIGHTER)
+            const exchange = this.currentExchange || this.datafeed.getExchangeForSymbol(this.currentSymbol);
+            
+            // Get the appropriate API for the current exchange
+            const api = exchange === 'HYPERLIQUID' ? this.datafeed.hyperLiquidDatafeed.api : 
+                       exchange === 'LIGHTER' ? this.datafeed.lighterDatafeed.api :
+                       exchange === 'OSTIUM' ? this.datafeed.ostiumDatafeed.api : null;
             
             console.log(`   Exchange detected: ${exchange}`);
             console.log(`   API found: ${api ? 'Yes' : 'No'}`);
@@ -596,7 +638,19 @@ class TradingViewApp {
                 }
                 
                 console.log(`   📤 Subscribing to order book with key: ${subscriptionKey}`);
+                
+                // Generate a unique subscription ID to detect stale callbacks
+                this.orderBookSubscriptionId++;
+                const currentSubscriptionId = this.orderBookSubscriptionId;
+                console.log(`   🆔 Subscription ID: ${currentSubscriptionId}`);
+                
                 await api.subscribeToOrderBook(subscriptionKey, (orderBook) => {
+                    // CRITICAL: Check if this callback is from the current subscription
+                    // If the subscription ID has changed, this is a stale callback from an old subscription
+                    if (currentSubscriptionId !== this.orderBookSubscriptionId) {
+                        console.log(`⚠️  Ignoring stale order book callback (ID ${currentSubscriptionId} vs current ${this.orderBookSubscriptionId})`);
+                        return;
+                    }
                     this.updateOrderBook(orderBook);
                 });
                 
@@ -605,7 +659,8 @@ class TradingViewApp {
                     symbol: this.currentSymbol,
                     exchange: exchange,
                     api: api,
-                    subscriptionKey: subscriptionKey
+                    subscriptionKey: subscriptionKey,
+                    subscriptionId: currentSubscriptionId
                 };
                 
                 console.log('✅ Order book subscription successful for', this.currentSymbol, 'on', exchange);
@@ -621,6 +676,19 @@ class TradingViewApp {
      * Update order book display
      */
     updateOrderBook(orderBook) {
+        // CRITICAL: Block ALL updates during symbol transition to prevent blinking
+        if (this.isTransitioning) {
+            console.log('⚠️  Ignoring order book update - symbol transition in progress');
+            return;
+        }
+        
+        // RACE CONDITION PROTECTION: Don't update if we've cleared the subscription
+        // This can happen when we switch symbols and a delayed WebSocket message arrives
+        if (!this.activeOrderBookSubscription) {
+            console.log('⚠️  Ignoring order book update - no active subscription (likely old data)');
+            return;
+        }
+        
         console.log('📊 Updating order book display:', orderBook);
         
         const bidsContainer = document.getElementById('orderbook-bids');

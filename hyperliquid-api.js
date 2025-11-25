@@ -361,23 +361,29 @@ class HyperLiquidAPI {
             const coin = data.data.coin;
             const subscriptionKey = `${coin}_orderbook`;
             
+            // CRITICAL: Check if subscription still exists BEFORE processing
+            // This prevents processing stale messages after unsubscribe
             console.log(`🔑 Looking for order book subscription key: ${subscriptionKey}`);
             const subscribers = this.subscribers.get(subscriptionKey);
             
-            if (subscribers) {
-                console.log(`✅ Found ${subscribers.size} order book subscribers for ${coin}`);
-                
-
-                
-                // Format order book data according to HyperLiquid spec
-                const orderBook = {
-                    coin: coin,
-                    levels: data.data.levels, // [bids, asks]
-                    time: Date.now()
-                };
-                
-                console.log('📊 Formatted order book:', orderBook);
-                
+            if (!subscribers || subscribers.size === 0) {
+                console.log(`⚠️  Ignoring order book update for ${coin} - no active subscribers`);
+                return;
+            }
+            
+            console.log(`✅ Found ${subscribers.size} order book subscribers for ${coin}`);
+            
+            // Format order book data according to HyperLiquid spec
+            const orderBook = {
+                coin: coin,
+                levels: data.data.levels, // [bids, asks]
+                time: Date.now()
+            };
+            
+            console.log('📊 Formatted order book:', orderBook);
+            
+            // Double-check subscription still exists before calling callbacks
+            if (this.subscribers.has(subscriptionKey)) {
                 // Call all subscribers
                 subscribers.forEach(callback => {
                     try {
@@ -388,10 +394,8 @@ class HyperLiquidAPI {
                     }
                 });
             } else {
-                console.warn(`⚠️ No subscribers found for order book ${subscriptionKey}`);
+                console.log(`⚠️  Subscription cleared during processing, skipping callbacks`);
             }
-        } else {
-            console.log('🔍 Non-candle/orderbook WebSocket message:', data.channel);
         }
     }
 
@@ -497,7 +501,15 @@ class HyperLiquidAPI {
 
         const subscriptionKey = `${coin}_orderbook`;
         
-        if (!this.subscribers.has(subscriptionKey)) {
+        // CRITICAL: Clear any existing callbacks first to prevent duplicates
+        // This ensures only ONE callback is active per coin at a time
+        if (this.subscribers.has(subscriptionKey)) {
+            const existingCount = this.subscribers.get(subscriptionKey).size;
+            if (existingCount > 0) {
+                console.log(`⚠️  Clearing ${existingCount} existing callback(s) for ${coin} before adding new one`);
+                this.subscribers.get(subscriptionKey).clear();
+            }
+        } else {
             this.subscribers.set(subscriptionKey, new Set());
             console.log(`📝 Created new order book subscription set for: ${coin}`);
         }

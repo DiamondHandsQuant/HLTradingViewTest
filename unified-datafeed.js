@@ -286,18 +286,12 @@ class UnifiedDatafeed {
         console.log(`   Exchange (from resolveSymbol): ${exchange}`);
         console.log(`   Routing to: ${exchange === 'OSTIUM' ? 'OstiumDatafeed' : exchange === 'LIGHTER' ? 'LighterDatafeed' : 'HyperLiquidDatafeed'}`);
         
-        // CRITICAL: Detect symbol changes and notify app to cleanup order books
+        // Track symbol changes for debugging purposes only
+        // NOTE: Order book updates are now handled exclusively by onSymbolChanged event in app.js
+        // DO NOT call updateOrderBookVisibility here as it causes duplicate subscriptions and blinking
         if (!this.lastRequestedSymbol || this.lastRequestedSymbol !== symbolInfo.name) {
             console.log(`   ⚠️  Symbol changed from ${this.lastRequestedSymbol} to ${symbolInfo.name}`);
-            console.log(`   → Triggering order book cleanup via window event`);
-            console.log(`   → Using exchange from resolveSymbol: ${exchange}`);
-            
-            // Trigger cleanup via global event
-            // Use the exchange that was already determined from resolveSymbol, not a new lookup
-            if (window.tradingViewApp) {
-                window.tradingViewApp.updateOrderBookVisibility(exchange);
-            }
-            
+            console.log(`   ℹ️  Order book will be updated by onSymbolChanged event (not here)`);
             this.lastRequestedSymbol = symbolInfo.name;
         }
         

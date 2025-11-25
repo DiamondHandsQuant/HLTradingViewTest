@@ -326,26 +326,153 @@ class LighterAPI {
      * @param {Object} data - Parsed message data
      */
     handleWebSocketMessage(data) {
-        console.log('🔵 Lighter WebSocket message received:', data);
+        // Reduce logging noise - only log non-order-book messages or important events
+        if (!data.channel || !data.channel.startsWith('order_book:')) {
+            console.log('🔵 Lighter WebSocket message received:', data);
+        }
         
         // Handle order book updates
-        if (data.channel && data.channel.startsWith('order_book/')) {
-            const marketIndex = data.channel.split('/')[1];
+        // Lighter sends TWO types:
+        // 1. type: "subscribed/order_book" - FULL snapshot with all levels
+        // 2. type: "update/order_book" - DELTA with only changed levels
+        if (data.channel && data.channel.startsWith('order_book:')) {
+            const marketIndex = data.channel.split(':')[1];
             const subscriptionKey = `${marketIndex}_orderbook`;
             
+            // CRITICAL: Check if subscription still exists BEFORE processing
             const subscribers = this.subscribers.get(subscriptionKey);
             
-            if (subscribers) {
-                console.log(`✅ Found ${subscribers.size} order book subscribers for market ${marketIndex}`);
+            if (!subscribers || subscribers.size === 0) {
+                console.log(`⚠️  Ignoring order book update for market ${marketIndex} - no active subscribers`);
+                return;
+            }
+            
+            // Lighter WebSocket format: data.order_book contains bids/asks
+            const orderBookData = data.order_book || {};
+            const bids = orderBookData.bids || [];
+            const asks = orderBookData.asks || [];
+            
+            // Check if this is a FULL snapshot or a DELTA update
+            const isSnapshot = data.type === 'subscribed/order_book';
+            const isDelta = data.type === 'update/order_book';
+            
+            // Initialize order book cache for this market if needed
+            if (!this.orderBookCache) {
+                this.orderBookCache = {};
+            }
+            
+            // Format levels helper
+            const formatLevels = (levels) => {
+                if (!Array.isArray(levels)) return [];
+                return levels.map(level => ({
+                    px: level[0]?.toString() || level.price?.toString() || '0',
+                    sz: level[1]?.toString() || level.size?.toString() || '0'
+                }));
+            };
+            
+            if (isSnapshot) {
+                // FULL SNAPSHOT - replace entire order book
+                console.log(`📚 Received FULL order book snapshot for market ${marketIndex}: ${bids.length} bids, ${asks.length} asks`);
                 
-                // Format order book data
-                const orderBook = {
-                    marketIndex: marketIndex,
-                    bids: data.data?.bids || [],
-                    asks: data.data?.asks || [],
-                    time: Date.now()
+                this.orderBookCache[marketIndex] = {
+                    bids: formatLevels(bids),
+                    asks: formatLevels(asks)
                 };
+            } else if (isDelta) {
+                // DELTA UPDATE - apply changes to cached order book
+                console.log(`📝 Received DELTA update for market ${marketIndex}: ${bids.length} bids, ${asks.length} asks`);
+                console.log(`   Raw delta data - bids:`, JSON.stringify(bids.slice(0, 3)), `asks:`, JSON.stringify(asks.slice(0, 3)));
                 
+                // Only apply delta if we have a cached order book
+                if (!this.orderBookCache[marketIndex]) {
+                    console.log(`⚠️  Received delta update but no cached order book for market ${marketIndex}, skipping`);
+                    return;
+                }
+                
+                // Apply delta updates to the cached order book
+                const cachedBook = this.orderBookCache[marketIndex];
+                
+                // Process bid updates
+                // Delta format: {"price":"135.403","size":"6.395"} - objects with string values
+                for (const bidUpdate of bids) {
+                    // Handle both array format [price, size] and object format {price, size}
+                    const price = Array.isArray(bidUpdate) 
+                        ? bidUpdate[0]?.toString() 
+                        : bidUpdate.price?.toString();
+                    const size = Array.isArray(bidUpdate) 
+                        ? (bidUpdate[1]?.toString() || '0')
+                        : (bidUpdate.size?.toString() || '0');
+                    
+                    if (!price) continue;
+                    
+                    if (parseFloat(size) === 0) {
+                        // Remove level
+                        cachedBook.bids = cachedBook.bids.filter(b => b.px !== price);
+                    } else {
+                        // Update or add level
+                        const existingIndex = cachedBook.bids.findIndex(b => b.px === price);
+                        if (existingIndex >= 0) {
+                            cachedBook.bids[existingIndex].sz = size;
+                        } else {
+                            cachedBook.bids.push({ px: price, sz: size });
+                        }
+                    }
+                }
+                
+                // Process ask updates
+                // Delta format: {"price":"135.413","size":"1.677"} - objects with string values
+                for (const askUpdate of asks) {
+                    // Handle both array format [price, size] and object format {price, size}
+                    const price = Array.isArray(askUpdate) 
+                        ? askUpdate[0]?.toString() 
+                        : askUpdate.price?.toString();
+                    const size = Array.isArray(askUpdate) 
+                        ? (askUpdate[1]?.toString() || '0')
+                        : (askUpdate.size?.toString() || '0');
+                    
+                    if (!price) continue;
+                    
+                    if (parseFloat(size) === 0) {
+                        // Remove level
+                        cachedBook.asks = cachedBook.asks.filter(a => a.px !== price);
+                    } else {
+                        // Update or add level
+                        const existingIndex = cachedBook.asks.findIndex(a => a.px === price);
+                        if (existingIndex >= 0) {
+                            cachedBook.asks[existingIndex].sz = size;
+                        } else {
+                            cachedBook.asks.push({ px: price, sz: size });
+                        }
+                    }
+                }
+                
+                // Sort bids descending, asks ascending
+                cachedBook.bids.sort((a, b) => parseFloat(b.px) - parseFloat(a.px));
+                cachedBook.asks.sort((a, b) => parseFloat(a.px) - parseFloat(b.px));
+            } else {
+                console.log(`⚠️  Unknown order book message type: ${data.type}`);
+                return;
+            }
+            
+            // Get the current full order book from cache
+            const cachedBook = this.orderBookCache[marketIndex];
+            if (!cachedBook) {
+                console.log(`⚠️  No cached order book for market ${marketIndex}`);
+                return;
+            }
+            
+            // Create order book object to send to UI
+            const orderBook = {
+                levels: [
+                    cachedBook.bids.slice(0, 50),  // Top 50 bids
+                    cachedBook.asks.slice(0, 50)   // Top 50 asks
+                ],
+                marketIndex: marketIndex,
+                time: Date.now()
+            };
+            
+            // Send to callbacks
+            if (this.subscribers.has(subscriptionKey)) {
                 subscribers.forEach(callback => {
                     try {
                         callback(orderBook);
@@ -357,8 +484,9 @@ class LighterAPI {
         }
         
         // Handle trade updates
-        else if (data.channel && data.channel.startsWith('trade/')) {
-            const marketIndex = data.channel.split('/')[1];
+        // Format: {"channel": "trade:3", "type": "update/trade", ...}
+        else if (data.channel && data.channel.startsWith('trade:')) {
+            const marketIndex = data.channel.split(':')[1];
             const subscriptionKey = `${marketIndex}_trade`;
             
             const subscribers = this.subscribers.get(subscriptionKey);
@@ -366,12 +494,22 @@ class LighterAPI {
             if (subscribers) {
                 subscribers.forEach(callback => {
                     try {
-                        callback(data.data);
+                        callback(data);
                     } catch (error) {
                         console.error('Error in trade callback:', error);
                     }
                 });
             }
+        }
+        
+        // Handle subscription confirmations
+        else if (data.type === 'subscribed/order_book' || data.type === 'subscribed/trade') {
+            console.log('✅ Subscription confirmed:', data);
+        }
+        
+        // Log unhandled message types for debugging
+        else {
+            console.log('ℹ️  Unhandled Lighter WebSocket message type:', data.type || data.channel);
         }
     }
 
@@ -438,7 +576,15 @@ class LighterAPI {
 
         const subscriptionKey = `${marketIndex}_orderbook`;
         
-        if (!this.subscribers.has(subscriptionKey)) {
+        // CRITICAL: Clear any existing callbacks first to prevent duplicates
+        // This ensures only ONE callback is active per market at a time
+        if (this.subscribers.has(subscriptionKey)) {
+            const existingCount = this.subscribers.get(subscriptionKey).size;
+            if (existingCount > 0) {
+                console.log(`⚠️  Clearing ${existingCount} existing callback(s) for market ${marketIndex} before adding new one`);
+                this.subscribers.get(subscriptionKey).clear();
+            }
+        } else {
             this.subscribers.set(subscriptionKey, new Set());
             console.log(`📝 Created new order book subscription set for market ${marketIndex}`);
         }
@@ -446,15 +592,17 @@ class LighterAPI {
         this.subscribers.get(subscriptionKey).add(callback);
         console.log(`👥 Added order book callback, total subscribers: ${this.subscribers.get(subscriptionKey).size}`);
 
-        // Send subscription message
+        // Send subscription message according to Lighter API docs
+        // Format: {"type": "subscribe", "channel": "order_book/{MARKET_INDEX}"}
         const subscriptionMessage = {
             type: 'subscribe',
             channel: `order_book/${marketIndex}`
         };
 
         if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-            console.log(`📤 Sending Lighter WebSocket subscription:`, subscriptionMessage);
+            console.log(`📤 Sending Lighter order book subscription:`, subscriptionMessage);
             this.ws.send(JSON.stringify(subscriptionMessage));
+            console.log(`✅ Lighter order book subscription sent for market ${marketIndex}`);
         } else {
             console.warn(`⚠️  WebSocket not ready for subscription. State:`, this.ws?.readyState);
         }
@@ -469,19 +617,34 @@ class LighterAPI {
         
         const subscriptionKey = `${marketIndex}_orderbook`;
         
+        // Clear the order book cache for this market
+        if (this.orderBookCache && this.orderBookCache[marketIndex]) {
+            delete this.orderBookCache[marketIndex];
+            console.log(`   Cleared order book cache for market ${marketIndex}`);
+        }
+        
+        // CRITICAL: Clear the subscriber set FIRST to stop callbacks immediately
         if (this.subscribers.has(subscriptionKey)) {
+            const subscriberCount = this.subscribers.get(subscriptionKey).size;
+            console.log(`   Clearing ${subscriberCount} subscriber(s) for market ${marketIndex}`);
+            
+            // Delete the subscription key to stop all callbacks
             this.subscribers.delete(subscriptionKey);
             console.log(`✅ Removed order book subscription for market ${marketIndex}`);
             
-            // Send unsubscribe message
+            // Send unsubscribe message according to Lighter API docs
+            // Format: {"type": "unsubscribe", "channel": "order_book/{MARKET_INDEX}"}
             const unsubscribeMessage = {
                 type: 'unsubscribe',
                 channel: `order_book/${marketIndex}`
             };
             
             if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                console.log(`📤 Sending Lighter WebSocket unsubscribe:`, unsubscribeMessage);
+                console.log(`📤 Sending Lighter order book unsubscribe:`, unsubscribeMessage);
                 this.ws.send(JSON.stringify(unsubscribeMessage));
+                console.log(`✅ Lighter order book unsubscribe sent for market ${marketIndex}`);
+            } else {
+                console.log(`⚠️  WebSocket not ready, subscription cleared locally only`);
             }
         } else {
             console.log(`ℹ️  No active order book subscription found for market ${marketIndex}`);

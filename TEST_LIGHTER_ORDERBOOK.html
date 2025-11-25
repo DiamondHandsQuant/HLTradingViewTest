@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Lighter Order Book</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            background-color: #0d1421;
+            color: #d1d4dc;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #4caf50;
+        }
+        
+        .status {
+            background: #1e222d;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        
+        .status-item {
+            margin: 5px 0;
+        }
+        
+        .success {
+            color: #4caf50;
+        }
+        
+        .error {
+            color: #f44336;
+        }
+        
+        .warning {
+            color: #ff9800;
+        }
+        
+        .log-container {
+            background: #131722;
+            padding: 15px;
+            border-radius: 8px;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 20px 0;
+        }
+        
+        .log-entry {
+            padding: 5px 0;
+            border-bottom: 1px solid #2a2e39;
+            font-size: 12px;
+        }
+        
+        .orderbook-display {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        
+        .orderbook-side {
+            flex: 1;
+            background: #1e222d;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .orderbook-side h3 {
+            margin-top: 0;
+        }
+        
+        .bid-side h3 {
+            color: #4caf50;
+        }
+        
+        .ask-side h3 {
+            color: #f44336;
+        }
+        
+        .order-level {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px;
+            margin: 2px 0;
+            background: #131722;
+            border-radius: 4px;
+        }
+        
+        .bid-level {
+            border-left: 3px solid #4caf50;
+        }
+        
+        .ask-level {
+            border-left: 3px solid #f44336;
+        }
+        
+        button {
+            background: #2962ff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background: #1e53e5;
+        }
+        
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+        }
+        
+        .controls {
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Lighter Order Book Test</h1>
+        
+        <div class="status">
+            <h3>Connection Status</h3>
+            <div class="status-item">
+                <strong>WebSocket:</strong> <span id="ws-status" class="warning">Not Connected</span>
+            </div>
+            <div class="status-item">
+                <strong>Market ID:</strong> <span id="market-id">-</span>
+            </div>
+            <div class="status-item">
+                <strong>Updates Received:</strong> <span id="update-count">0</span>
+            </div>
+            <div class="status-item">
+                <strong>Last Update:</strong> <span id="last-update">-</span>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <button id="connect-btn">Connect & Subscribe</button>
+            <button id="unsubscribe-btn" disabled>Unsubscribe</button>
+            <button id="clear-log-btn">Clear Log</button>
+        </div>
+        
+        <div class="orderbook-display">
+            <div class="orderbook-side bid-side">
+                <h3>Bids (Buy Orders)</h3>
+                <div id="bids-display">Waiting for data...</div>
+            </div>
+            <div class="orderbook-side ask-side">
+                <h3>Asks (Sell Orders)</h3>
+                <div id="asks-display">Waiting for data...</div>
+            </div>
+        </div>
+        
+        <div class="log-container">
+            <h3>Console Log</h3>
+            <div id="log-output"></div>
+        </div>
+    </div>
+
+    <script src="lighter-api.js"></script>
+    <script>
+        // Test configuration
+        const TEST_MARKET_ID = 3; // BTC/USD market on Lighter
+        
+        // Initialize API
+        const lighterAPI = new LighterAPI();
+        let updateCount = 0;
+        let subscribed = false;
+        
+        // UI Elements
+        const wsStatus = document.getElementById('ws-status');
+        const marketIdEl = document.getElementById('market-id');
+        const updateCountEl = document.getElementById('update-count');
+        const lastUpdateEl = document.getElementById('last-update');
+        const bidsDisplay = document.getElementById('bids-display');
+        const asksDisplay = document.getElementById('asks-display');
+        const logOutput = document.getElementById('log-output');
+        const connectBtn = document.getElementById('connect-btn');
+        const unsubscribeBtn = document.getElementById('unsubscribe-btn');
+        const clearLogBtn = document.getElementById('clear-log-btn');
+        
+        // Log function
+        function log(message, type = 'info') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logOutput.insertBefore(entry, logOutput.firstChild);
+            
+            // Keep original console behavior
+            if (type === 'error') {
+                console.error(message);
+            } else {
+                console.info(message);
+            }
+        }
+        
+        // Order book callback
+        function handleOrderBookUpdate(orderBook) {
+            updateCount++;
+            updateCountEl.textContent = updateCount;
+            lastUpdateEl.textContent = new Date().toLocaleTimeString();
+            
+            log(`📊 Order Book Update #${updateCount}`, 'success');
+            log(`   Bids: ${orderBook.levels[0]?.length || 0}, Asks: ${orderBook.levels[1]?.length || 0}`);
+            
+            // Display bids
+            const bids = orderBook.levels[0] || [];
+            if (bids.length > 0) {
+                bidsDisplay.innerHTML = bids.slice(0, 10).map(bid => `
+                    <div class="order-level bid-level">
+                        <span>Price: ${bid.px}</span>
+                        <span>Size: ${bid.sz}</span>
+                    </div>
+                `).join('');
+            }
+            
+            // Display asks
+            const asks = orderBook.levels[1] || [];
+            if (asks.length > 0) {
+                asksDisplay.innerHTML = asks.slice(0, 10).map(ask => `
+                    <div class="order-level ask-level">
+                        <span>Price: ${ask.px}</span>
+                        <span>Size: ${ask.sz}</span>
+                    </div>
+                `).join('');
+            }
+        }
+        
+        // Connect and subscribe
+        connectBtn.addEventListener('click', async () => {
+            try {
+                log('🔌 Connecting to Lighter WebSocket...', 'info');
+                connectBtn.disabled = true;
+                
+                // First, load markets
+                log('📋 Loading Lighter markets...', 'info');
+                await lighterAPI.getMarkets();
+                
+                // Subscribe to order book
+                log(`📚 Subscribing to order book for market ${TEST_MARKET_ID}...`, 'info');
+                await lighterAPI.subscribeToOrderBook(TEST_MARKET_ID, handleOrderBookUpdate);
+                
+                wsStatus.textContent = 'Connected';
+                wsStatus.className = 'success';
+                marketIdEl.textContent = TEST_MARKET_ID;
+                unsubscribeBtn.disabled = false;
+                subscribed = true;
+                
+                log('✅ Successfully subscribed to order book!', 'success');
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+                wsStatus.textContent = 'Error';
+                wsStatus.className = 'error';
+                connectBtn.disabled = false;
+            }
+        });
+        
+        // Unsubscribe
+        unsubscribeBtn.addEventListener('click', () => {
+            log(`🧹 Unsubscribing from order book...`, 'info');
+            lighterAPI.unsubscribeFromOrderBook(TEST_MARKET_ID);
+            lighterAPI.disconnectWebSocket();
+            
+            wsStatus.textContent = 'Disconnected';
+            wsStatus.className = 'warning';
+            connectBtn.disabled = false;
+            unsubscribeBtn.disabled = true;
+            subscribed = false;
+            
+            log('✅ Unsubscribed', 'success');
+        });
+        
+        // Clear log
+        clearLogBtn.addEventListener('click', () => {
+            logOutput.innerHTML = '';
+            updateCount = 0;
+            updateCountEl.textContent = '0';
+        });
+        
+        // Page load
+        log('🚀 Test page loaded. Click "Connect & Subscribe" to start.', 'info');
+        log(`📍 Testing with Market ID: ${TEST_MARKET_ID}`, 'info');
+    </script>
+</body>
+</html>
+
