@@ -238,17 +238,21 @@ class LighterAPI {
         }
 
         const formatted = rawData.map((candle, index) => {
-            // Lighter returns timestamps - need to verify format
-            const timestamp = candle.timestamp || candle.time || candle.t;
+            // Lighter returns timestamps in MILLISECONDS
+            let timestamp = candle.timestamp || candle.time || candle.t;
             
             // Debug timestamp conversion for first few items
             if (index < 3) {
                 console.log(`🔍 Raw candle:`, candle);
-                console.log(`🔍 Timestamp: ${timestamp} -> Date: ${new Date(timestamp * 1000)}`);
+                console.log(`🔍 Timestamp (ms): ${timestamp} -> Date: ${new Date(timestamp)}`);
             }
             
+            // Lighter API returns timestamps in milliseconds, convert to seconds for internal use
+            // (TradingView datafeed will convert back to milliseconds)
+            const timeInSeconds = Math.floor(timestamp / 1000);
+            
             return {
-                time: timestamp, // Assuming already in seconds
+                time: timeInSeconds, // Store in seconds for consistency
                 open: parseFloat(candle.open || candle.o),
                 high: parseFloat(candle.high || candle.h),
                 low: parseFloat(candle.low || candle.l),
